@@ -775,13 +775,15 @@ body {
 
 .detail-item .lbl {
   color: var(--text-muted);
+  max-width: 48%;
 }
 
 .detail-item .val {
   color: var(--text-main);
   text-align: right;
-  max-width: 65%;
-  word-break: break-word;
+  max-width: 50%;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 .detail-item.divider {
