@@ -1270,6 +1270,8 @@ body {
 }
 
 .filter-card {
+  position: relative;
+  z-index: 10;
   overflow: visible !important;
 }
 
@@ -1421,7 +1423,7 @@ body:not(.dark-theme) .filter-results-table th {
   border-radius: 8px;
   max-height: 250px;
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 9999;
   box-shadow: var(--shadow-lg);
   margin-top: 4px;
 }
