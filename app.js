@@ -1467,14 +1467,14 @@ function displayStudentDetails(student, headers, rowData) {
   
   document.getElementById('valLoanAmount').textContent = displayVal(getVal(student, ['Loan Amount']), 'currency');
   document.getElementById('valDisbursedAmount').textContent = displayVal(getVal(student, ['Disbursed Amount/Direct Payment', 'Disbursed Amount']), 'currency');
-  document.getElementById('valDisbursedDate').textContent = displayVal(getVal(student, ['Disbursed/Paid Date', 'Disbursed Date']));
+  document.getElementById('valDisbursedDate').textContent = displayVal(formatDateDisplay(getVal(student, ['Disbursed/Paid Date', 'Disbursed Date'])));
   document.getElementById('valDisbursalUTR').textContent = displayVal(getVal(student, ['UTR']), 'utr');
   document.getElementById('valOverallAmountPaid').textContent = displayVal(getVal(student, ['Over all Amount Paid']), 'currency');
   document.getElementById('valBajajAdjusted').textContent = displayVal(getVal(student, ['Bajaj Adjusted Amount']), 'currency');
   
   document.getElementById('valEMIAmount').textContent = displayVal(getVal(student, ['EMI Amount']), 'currency');
   document.getElementById('valEMITenure').textContent = displayVal(getVal(student, ['EMI Tenure']));
-  document.getElementById('valEMIStartDate').textContent = displayVal(getVal(student, ['EMI Start Date']));
+  document.getElementById('valEMIStartDate').textContent = displayVal(formatDateDisplay(getVal(student, ['EMI Start Date'])));
   document.getElementById('valSubventionAmt').textContent = displayVal(getVal(student, ['Subvention Amount']), 'currency');
   document.getElementById('valClosedStatus').textContent = displayVal(getVal(student, ['Closed/Not closed', 'Closed']));
   document.getElementById('valUpsellStatus').textContent = displayVal(getVal(student, ['Upsell']));
@@ -1482,8 +1482,8 @@ function displayStudentDetails(student, headers, rowData) {
   // Section 5: Cohort Timeline & Admin Details
   document.getElementById('valRetentionWeek').textContent = displayVal(getVal(student, ['Retention Week']));
   document.getElementById('valPrateekWeek').textContent = displayVal(getVal(student, ['Prateek sir Week']));
-  document.getElementById('valDeadline').textContent = displayVal(getVal(student, ['Deadline']));
-  document.getElementById('valSOPDate').textContent = displayVal(getVal(student, ['Weekly date/SOP date']));
+  document.getElementById('valDeadline').textContent = displayVal(formatDateDisplay(getVal(student, ['Deadline'])));
+  document.getElementById('valSOPDate').textContent = displayVal(formatDateDisplay(getVal(student, ['Weekly date/SOP date'])));
   document.getElementById('valReferralAmount').textContent = displayVal(getVal(student, ['Referral amount']), 'currency');
   document.getElementById('valMasaiBitSom').textContent = displayVal(getVal(student, ['BITSoM/Masai']));
   document.getElementById('valBucket').textContent = displayVal(getVal(student, ['Bucket']));

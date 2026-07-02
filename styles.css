@@ -775,13 +775,13 @@ body {
 
 .detail-item .lbl {
   color: var(--text-muted);
-  max-width: 48%;
+  flex-shrink: 0;
+  padding-right: 0.5rem;
 }
 
 .detail-item .val {
   color: var(--text-main);
   text-align: right;
-  max-width: 50%;
   word-break: normal;
   overflow-wrap: anywhere;
 }
