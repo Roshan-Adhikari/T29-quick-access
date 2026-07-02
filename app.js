@@ -752,10 +752,35 @@ async function callAppsScript(action, extraParams = {}) {
   if (!url || !token) throw new Error('Apps Script not configured');
 
   const params = new URLSearchParams({ action, token, sheet, ...extraParams });
-  const res = await fetch(`${url}?${params}`);
-  if (!res.ok) throw new Error(`Apps Script error: ${res.status}`);
+  
+  // Create an AbortController for a 60 second timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-  const data = await res.json();
+  let res;
+  try {
+    res = await fetch(`${url}?${params}`, { signal: controller.signal });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') throw new Error('Apps Script request timed out after 60 seconds. The server might be processing a very large amount of data or is stuck.');
+    throw err;
+  }
+  
+  clearTimeout(timeoutId);
+
+  if (!res.ok) {
+    let errorText = await res.text().catch(() => '');
+    if (errorText.includes('<html')) errorText = 'Google returned an HTML page (possibly a Google Login redirect or 500 Error). Ensure your Apps Script Web App is set to "Who has access: Anyone".';
+    throw new Error(`Apps Script error: ${res.status}. ${errorText}`);
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    throw new Error('Apps Script returned invalid JSON. It might have crashed or returned an HTML error page. Check Apps Script executions log.');
+  }
+
   if (data.error) throw new Error(`Apps Script: ${data.error}`);
   return data;
 }
@@ -1011,7 +1036,11 @@ async function fetchSpreadsheetIndex(forceRefresh = false) {
       adviceText = '\n\nTroubleshooting tips:\n1. Verify your Spreadsheet ID (ensure it is just the ID, not the full URL).\n2. Disable any adblockers or privacy extensions (like Brave Shields) for this page, as they may block Google API requests.\n3. Make sure you are connected to the internet.';
     }
     
-    alert(`Spreadsheet Indexing failed: ${err.message}${adviceText}\n\nPlease verify Spreadsheet ID, Sheet Name, and that your Google Account has permissions.`);
+    // Use setTimeout so the browser can paint the hidden loader before blocking execution with alert
+    setTimeout(() => {
+      alert(`Spreadsheet Indexing failed: ${err.message}${adviceText}\n\nPlease verify Spreadsheet ID, Sheet Name, and that your Google Account has permissions.`);
+    }, 100);
+    
     return null;
   }
 }
