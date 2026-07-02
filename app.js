@@ -132,7 +132,8 @@ const historyList = document.getElementById('historyList');
 const autocompleteSuggestions = document.getElementById('autocompleteSuggestions');
 
 // Filter Panel UI Elements
-const selCommonName = document.getElementById('selCommonName');
+const txtCommonName = document.getElementById('txtCommonName');
+const commonNamesList = document.getElementById('commonNamesList');
 const selBatchDate = document.getElementById('selBatchDate');
 const btnResetFilters = document.getElementById('btnResetFilters');
 const btnDownloadCSV = document.getElementById('btnDownloadCSV');
@@ -142,6 +143,12 @@ const tableFilterBody = document.getElementById('tableFilterBody');
 const btnFilterPrev = document.getElementById('btnFilterPrev');
 const btnFilterNext = document.getElementById('btnFilterNext');
 const lblFilterPage = document.getElementById('lblFilterPage');
+
+// Sidebar Tabs UI Elements
+const btnTabStudentsData = document.getElementById('btnTabStudentsData');
+const btnTabFilter = document.getElementById('btnTabFilter');
+const viewStudentsData = document.getElementById('viewStudentsData');
+const viewFilter = document.getElementById('viewFilter');
 
 // Autocomplete State
 let activeSuggestionIndex = -1;
@@ -194,8 +201,28 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchSpreadsheetIndex(true);
   });
 
+  // Tab toggling listeners
+  if (btnTabStudentsData && btnTabFilter && viewStudentsData && viewFilter) {
+    btnTabStudentsData.addEventListener('click', () => {
+      btnTabStudentsData.classList.add('active');
+      btnTabFilter.classList.remove('active');
+      viewStudentsData.classList.remove('hidden');
+      viewFilter.classList.add('hidden');
+    });
+
+    btnTabFilter.addEventListener('click', () => {
+      btnTabFilter.classList.add('active');
+      btnTabStudentsData.classList.remove('active');
+      viewFilter.classList.remove('hidden');
+      viewStudentsData.classList.add('hidden');
+    });
+  }
+
   // Filter event listeners
-  if (selCommonName) selCommonName.addEventListener('change', applyFilters);
+  if (txtCommonName) {
+    txtCommonName.addEventListener('input', handleCommonNameChange);
+    txtCommonName.addEventListener('change', handleCommonNameChange);
+  }
   if (selBatchDate) selBatchDate.addEventListener('change', applyFilters);
   if (btnResetFilters) btnResetFilters.addEventListener('click', resetFilters);
   if (btnDownloadCSV) btnDownloadCSV.addEventListener('click', downloadFilteredCSV);
@@ -1321,24 +1348,24 @@ function initializeFilters() {
     return parseDate(a) - parseDate(b);
   });
 
-  populateFilterDropdowns();
+  populateCommonNamesDatalist();
   resetFilters();
 }
 
-function populateFilterDropdowns() {
-  if (!selCommonName || !selBatchDate) return;
-
-  selCommonName.innerHTML = '<option value="">All Common Names</option>';
-  selBatchDate.innerHTML = '<option value="">All Batch Dates</option>';
-
+function populateCommonNamesDatalist() {
+  if (!commonNamesList) return;
+  commonNamesList.innerHTML = '';
   uniqueCommonNames.forEach(name => {
     const opt = document.createElement('option');
     opt.value = name;
-    opt.textContent = name;
-    selCommonName.appendChild(opt);
+    commonNamesList.appendChild(opt);
   });
+}
 
-  uniqueBatchDates.forEach(date => {
+function populateBatchDatesSelect(datesArray) {
+  if (!selBatchDate) return;
+  selBatchDate.innerHTML = '<option value="">All Batch Dates</option>';
+  datesArray.forEach(date => {
     const opt = document.createElement('option');
     opt.value = date;
     opt.textContent = date;
@@ -1346,10 +1373,45 @@ function populateFilterDropdowns() {
   });
 }
 
+function handleCommonNameChange() {
+  const selectedCommon = txtCommonName.value.trim();
+  
+  if (!selectedCommon) {
+    populateBatchDatesSelect(uniqueBatchDates);
+    applyFilters();
+    return;
+  }
+
+  // Find all dates applicable to this common name
+  const filteredDates = new Set();
+  for (let i = 0; i < emailIndex.length; i++) {
+    const common = commonNameIndex[i] || '';
+    const date = batchStartDateIndex[i] || '';
+    if (common.toLowerCase() === selectedCommon.toLowerCase() && date && date !== '-') {
+      filteredDates.add(date);
+    }
+  }
+
+  const applicableDates = Array.from(filteredDates).sort((a, b) => {
+    const parseDate = (dStr) => {
+      if (!dStr) return 0;
+      const parts = dStr.split('/');
+      if (parts.length === 3) {
+        return new Date(parts[2], parts[1]-1, parts[0]).getTime();
+      }
+      return new Date(dStr).getTime() || 0;
+    };
+    return parseDate(a) - parseDate(b);
+  });
+
+  populateBatchDatesSelect(applicableDates);
+  applyFilters();
+}
+
 function applyFilters() {
   if (!emailIndex) return;
 
-  const selectedCommon = selCommonName.value;
+  const selectedCommon = txtCommonName.value.trim();
   const selectedBatch = selBatchDate.value;
 
   const matches = [];
@@ -1358,7 +1420,7 @@ function applyFilters() {
     const common = commonNameIndex[i] || '';
     const batch = batchStartDateIndex[i] || '';
 
-    const commonMatch = !selectedCommon || common === selectedCommon;
+    const commonMatch = !selectedCommon || common.toLowerCase() === selectedCommon.toLowerCase();
     const batchMatch = !selectedBatch || batch === selectedBatch;
 
     if (commonMatch && batchMatch) {
@@ -1381,8 +1443,10 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  if (selCommonName) selCommonName.value = '';
+  if (txtCommonName) txtCommonName.value = '';
   if (selBatchDate) selBatchDate.value = '';
+  
+  populateBatchDatesSelect(uniqueBatchDates);
   
   if (emailIndex) {
     filteredStudentIndices = Array.from({ length: emailIndex.length }, (_, i) => i);
@@ -1445,6 +1509,9 @@ function renderFilterTable() {
     tr.addEventListener('click', () => {
       if (email) {
         txtSearchEmail.value = email;
+        if (btnTabStudentsData) {
+          btnTabStudentsData.click();
+        }
         searchStudent(email);
       }
     });
@@ -1524,7 +1591,7 @@ function downloadFilteredCSV() {
   const link = document.createElement('a');
   link.setAttribute('href', url);
   
-  const selectedCommon = selCommonName.value ? selCommonName.value.replace(/[^a-zA-Z0-9-_]/g, '_') : 'All_Common';
+  const selectedCommon = txtCommonName.value ? txtCommonName.value.replace(/[^a-zA-Z0-9-_]/g, '_') : 'All_Common';
   const selectedBatch = selBatchDate.value ? selBatchDate.value.replace(/[^a-zA-Z0-9-_]/g, '_') : 'All_Dates';
   link.setAttribute('download', `Students_Filter_${selectedCommon}_${selectedBatch}.csv`);
   
