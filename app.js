@@ -1339,7 +1339,7 @@ function displayStudentDetails(student, headers, rowData) {
   document.getElementById('valEMITenure').textContent = displayVal(getVal(student, ['EMI Tenure']));
   document.getElementById('valEMIStartDate').textContent = displayVal(getVal(student, ['EMI Start Date']));
   document.getElementById('valSubventionAmt').textContent = displayVal(getVal(student, ['Subvention Amount']), 'currency');
-  document.getElementById('valClosedStatus').textContent = displayVal(closedStatusText);
+  document.getElementById('valClosedStatus').textContent = displayVal(getVal(student, ['Closed/Not closed', 'Closed']));
   document.getElementById('valUpsellStatus').textContent = displayVal(getVal(student, ['Upsell']));
  
   // Section 5: Cohort Timeline & Admin Details
