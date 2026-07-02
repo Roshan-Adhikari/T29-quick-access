@@ -1277,9 +1277,11 @@ function displayStudentDetails(student, headers, rowData) {
  
   // Status banners
   const nbfcStatusText = getVal(student, ['NBFC Status']);
-  const closedStatusText = getVal(student, ['Closed/Not closed', 'Closed']);
+  const commonNameText = getVal(student, ['Common Name']);
+  const batchDateText  = getVal(student, ['Batch Start Date']);
   document.getElementById('lblBannerNBFCStatus').textContent = nbfcStatusText;
-  document.getElementById('lblBannerClosedStatus').textContent = closedStatusText;
+  document.getElementById('lblBannerCommonName').textContent = displayVal(commonNameText);
+  document.getElementById('lblBannerBatchDate').textContent  = displayVal(batchDateText);
  
   // Banner status styling color overrides
   const bannerNbfc = document.getElementById('lblBannerNBFCStatus');
