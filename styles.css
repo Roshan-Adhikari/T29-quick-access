@@ -444,7 +444,7 @@ body {
   border-radius: 12px;
   background-color: var(--bg-secondary);
   border: 1.5px solid var(--border-glass);
-  color: white;
+  color: var(--text-main);
   font-size: 1.05rem;
   outline: none;
   transition: var(--transition-fast);
@@ -965,7 +965,7 @@ body {
   border: 1px solid var(--border-glass);
   border-radius: 8px;
   padding: 0.65rem 0.875rem;
-  color: white;
+  color: var(--text-main);
   outline: none;
   font-size: 0.95rem;
   transition: var(--transition-fast);
