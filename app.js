@@ -5,9 +5,26 @@
 let tokenClient;
 let accessToken = null;
 let sheetHeaders = null;
+
+// Indexed database columns
 let emailIndex = null;
-let mobileIndex = null;
 let nameIndex = null;
+let mobileIndex = null;
+let alternateNumberIndex = null;
+let courseNameIndex = null;
+let paymentModeIndex = null;
+let overallAmountPaidIndex = null;
+let nbfcStatusIndex = null;
+let commonNameIndex = null;
+let batchStartDateIndex = null;
+
+// Filtering UI state
+let uniqueCommonNames = [];
+let uniqueBatchDates = [];
+let filteredStudentIndices = []; // Stores matching index numbers from emailIndex
+let filterCurrentPage = 1;
+const FILTER_PAGE_SIZE = 10;
+
 let recentLookups = [];
 let isPrivacyMode = false;
 let currentStudent = null;
@@ -80,6 +97,7 @@ async function clearDBCache() {
 
 
 // DOM Elements
+const btnThemeToggle = document.getElementById('btnThemeToggle');
 const btnPrivacyToggle = document.getElementById('btnPrivacyToggle');
 const btnSettings = document.getElementById('btnSettings');
 const btnCloseSettings = document.getElementById('btnCloseSettings');
@@ -113,6 +131,18 @@ const codeRawJSON = document.getElementById('codeRawJSON');
 const historyList = document.getElementById('historyList');
 const autocompleteSuggestions = document.getElementById('autocompleteSuggestions');
 
+// Filter Panel UI Elements
+const selCommonName = document.getElementById('selCommonName');
+const selBatchDate = document.getElementById('selBatchDate');
+const btnResetFilters = document.getElementById('btnResetFilters');
+const btnDownloadCSV = document.getElementById('btnDownloadCSV');
+const filterResultsCard = document.getElementById('filterResultsCard');
+const lblFilterResultsCount = document.getElementById('lblFilterResultsCount');
+const tableFilterBody = document.getElementById('tableFilterBody');
+const btnFilterPrev = document.getElementById('btnFilterPrev');
+const btnFilterNext = document.getElementById('btnFilterNext');
+const lblFilterPage = document.getElementById('lblFilterPage');
+
 // Autocomplete State
 let activeSuggestionIndex = -1;
 let currentSuggestions = [];
@@ -125,11 +155,23 @@ function normalizeHeaderKey(key) {
 
 // Check configuration on load
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize theme
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark-theme');
+  } else {
+    document.body.classList.remove('dark-theme');
+  }
+  updateThemeToggleUI();
+
   loadConfig();
   checkCachedSession();
   updateHistoryUI();
   
   // Register basic event listeners
+  if (btnThemeToggle) {
+    btnThemeToggle.addEventListener('click', toggleThemeMode);
+  }
   btnPrivacyToggle.addEventListener('click', togglePrivacyMode);
   btnSettings.addEventListener('click', () => showSettingsModal(true));
   btnCloseSettings.addEventListener('click', () => showSettingsModal(false));
@@ -151,6 +193,15 @@ document.addEventListener('DOMContentLoaded', () => {
   btnClearCache.addEventListener('click', () => {
     fetchSpreadsheetIndex(true);
   });
+
+  // Filter event listeners
+  if (selCommonName) selCommonName.addEventListener('change', applyFilters);
+  if (selBatchDate) selBatchDate.addEventListener('change', applyFilters);
+  if (btnResetFilters) btnResetFilters.addEventListener('click', resetFilters);
+  if (btnDownloadCSV) btnDownloadCSV.addEventListener('click', downloadFilteredCSV);
+  
+  if (btnFilterPrev) btnFilterPrev.addEventListener('click', () => changeFilterPage(-1));
+  if (btnFilterNext) btnFilterNext.addEventListener('click', () => changeFilterPage(1));
 });
 
 // Extract spreadsheet ID from Google Sheet URL if necessary
@@ -240,6 +291,31 @@ function showSettingsModal(show) {
     modalSettings.classList.remove('hidden');
   } else {
     modalSettings.classList.add('hidden');
+  }
+}
+
+function toggleThemeMode() {
+  document.body.classList.toggle('dark-theme');
+  const isDark = document.body.classList.contains('dark-theme');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  updateThemeToggleUI();
+}
+
+function updateThemeToggleUI() {
+  if (!btnThemeToggle) return;
+  const txtSpan = btnThemeToggle.querySelector('span');
+  const iconSun = btnThemeToggle.querySelector('.icon-sun');
+  const iconMoon = btnThemeToggle.querySelector('.icon-moon');
+  
+  const isDark = document.body.classList.contains('dark-theme');
+  if (isDark) {
+    txtSpan.textContent = 'Light Mode';
+    iconSun.classList.remove('hidden');
+    iconMoon.classList.add('hidden');
+  } else {
+    txtSpan.textContent = 'Dark Mode';
+    iconSun.classList.add('hidden');
+    iconMoon.classList.remove('hidden');
   }
 }
 
@@ -479,6 +555,28 @@ async function callSheetsAPI(spreadsheetId, range) {
   return await response.json();
 }
 
+async function callSheetsAPIBatch(spreadsheetId, ranges) {
+  const queryParams = ranges.map(r => `ranges=${encodeURIComponent(r)}`).join('&');
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${queryParams}`;
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      signOutGoogle();
+      throw new Error('Your session expired. Please sign in again.');
+    }
+    const errObj = await response.json().catch(() => ({}));
+    const errMsg = errObj.error ? errObj.error.message : response.statusText;
+    throw new Error(`Sheets API error: ${response.status} - ${errMsg}`);
+  }
+  return await response.json();
+}
+
 // Convert index column index to Excel column letter
 function getColumnLetter(colIndex) {
   let temp;
@@ -528,7 +626,7 @@ async function fetchSpreadsheetIndex(forceRefresh = false) {
   }
 
   // 1. Try loading from memory first
-  if (!forceRefresh && sheetHeaders && emailIndex) {
+  if (!forceRefresh && sheetHeaders && emailIndex && commonNameIndex) {
     return { headers: sheetHeaders, emails: emailIndex, names: nameIndex, mobiles: mobileIndex };
   }
 
@@ -541,14 +639,23 @@ async function fetchSpreadsheetIndex(forceRefresh = false) {
           cached.spreadsheetId === spreadsheetId && 
           cached.sheetName === sheetName && 
           cached.searchColumn === searchColumn &&
-          cached.headers && cached.emails) {
+          cached.headers && cached.emails &&
+          cached.commonNames && cached.batchStartDates) {
         
         sheetHeaders = cached.headers;
         emailIndex = cached.emails;
         nameIndex = cached.names || [];
         mobileIndex = cached.mobiles || [];
+        alternateNumberIndex = cached.alternateNumbers || [];
+        courseNameIndex = cached.courseNames || [];
+        paymentModeIndex = cached.paymentModes || [];
+        overallAmountPaidIndex = cached.overallAmountPaids || [];
+        nbfcStatusIndex = cached.nbfcStatuses || [];
+        commonNameIndex = cached.commonNames || [];
+        batchStartDateIndex = cached.batchStartDates || [];
         
         updateIndexStatus(`Offline Cache: ${emailIndex.length.toLocaleString()} records.`, 'green');
+        initializeFilters();
         return { headers: sheetHeaders, emails: emailIndex, names: nameIndex, mobiles: mobileIndex };
       }
     } catch (err) {
@@ -582,50 +689,89 @@ async function fetchSpreadsheetIndex(forceRefresh = false) {
     const normMobileColumn = normalizeHeaderKey("Mobile");
     const mobileColIndex = sheetHeaders.findIndex(h => normalizeHeaderKey(h) === normMobileColumn);
 
-    // 2. Fetch the indices in parallel
-    showLoader(true, 'Downloading Database Indices...', 'Downloading columns for Name, Email, and Mobile fields to optimize queries...');
+    const normAltPhoneColumn = normalizeHeaderKey("Alternate Number");
+    const altPhoneColIndex = sheetHeaders.findIndex(h => normalizeHeaderKey(h) === normAltPhoneColumn);
 
-    const promises = [];
-    const keys = [];
+    const normCourseColumn = normalizeHeaderKey("Course Name");
+    const courseColIndex = sheetHeaders.findIndex(h => normalizeHeaderKey(h) === normCourseColumn);
 
-    // Email index (configured search column)
-    const emailColLetter = getColumnLetter(emailColIndex);
-    promises.push(callSheetsAPI(spreadsheetId, `'${sheetName}'!${emailColLetter}2:${emailColLetter}`));
-    keys.push('email');
+    const normPaymentColumn = normalizeHeaderKey("Payment Mode");
+    const paymentColIndex = sheetHeaders.findIndex(h => normalizeHeaderKey(h) === normPaymentColumn);
 
-    // Name index
-    if (nameColIndex !== -1) {
-      const nameColLetter = getColumnLetter(nameColIndex);
-      promises.push(callSheetsAPI(spreadsheetId, `'${sheetName}'!${nameColLetter}2:${nameColLetter}`));
-      keys.push('name');
-    }
+    const normPaidColumn = normalizeHeaderKey("Over all Amount Paid");
+    const paidColIndex = sheetHeaders.findIndex(h => normalizeHeaderKey(h) === normPaidColumn);
 
-    // Mobile index
-    if (mobileColIndex !== -1) {
-      const mobileColLetter = getColumnLetter(mobileColIndex);
-      promises.push(callSheetsAPI(spreadsheetId, `'${sheetName}'!${mobileColLetter}2:${mobileColLetter}`));
-      keys.push('mobile');
-    }
+    const normNbfcColumn = normalizeHeaderKey("NBFC Status");
+    const nbfcColIndex = sheetHeaders.findIndex(h => normalizeHeaderKey(h) === normNbfcColumn);
 
-    const results = await Promise.all(promises);
+    const normCommonColumn = normalizeHeaderKey("Common Name");
+    const commonColIndex = sheetHeaders.findIndex(h => normalizeHeaderKey(h) === normCommonColumn);
 
-    results.forEach((resData, idx) => {
-      const key = keys[idx];
-      const rawValues = resData.values ? resData.values.map(row => (row[0] || '').trim()) : [];
-      
-      if (key === 'email') {
-        emailIndex = rawValues.map(v => v.toLowerCase());
-      } else if (key === 'name') {
-        nameIndex = rawValues;
-      } else if (key === 'mobile') {
-        // Clean mobile number - preserve digits and plus sign
-        mobileIndex = rawValues.map(v => v.replace(/[^0-9+]/g, ''));
+    const normBatchColumn = normalizeHeaderKey("Batch Start Date");
+    const batchColIndex = sheetHeaders.findIndex(h => normalizeHeaderKey(h) === normBatchColumn);
+
+    // 2. Fetch the indices in batch
+    showLoader(true, 'Downloading Database Indices...', 'Downloading columns for Name, Email, Mobile, Batch, and NBFC status fields to optimize queries...');
+
+    const colMappings = [
+      { key: 'email', index: emailColIndex, label: 'Email' },
+      { key: 'name', index: nameColIndex, label: 'Student Name' },
+      { key: 'mobile', index: mobileColIndex, label: 'Mobile' },
+      { key: 'altPhone', index: altPhoneColIndex, label: 'Alternate Number' },
+      { key: 'course', index: courseColIndex, label: 'Course Name' },
+      { key: 'payment', index: paymentColIndex, label: 'Payment Mode' },
+      { key: 'paid', index: paidColIndex, label: 'Over all Amount Paid' },
+      { key: 'nbfc', index: nbfcColIndex, label: 'NBFC Status' },
+      { key: 'common', index: commonColIndex, label: 'Common Name' },
+      { key: 'batch', index: batchColIndex, label: 'Batch Start Date' }
+    ];
+
+    const ranges = [];
+    const activeKeys = [];
+    
+    colMappings.forEach(mapping => {
+      if (mapping.index !== -1) {
+        const colLetter = getColumnLetter(mapping.index);
+        ranges.push(`'${sheetName}'!${colLetter}2:${colLetter}`);
+        activeKeys.push(mapping.key);
       }
     });
 
-    // Handle missing indices gracefully
-    if (!nameIndex) nameIndex = new Array(emailIndex.length).fill('');
-    if (!mobileIndex) mobileIndex = new Array(emailIndex.length).fill('');
+    const batchData = await callSheetsAPIBatch(spreadsheetId, ranges);
+    const valueRanges = batchData.valueRanges || [];
+
+    let rowCount = 0;
+    const colValuesMap = {};
+    activeKeys.forEach((key, idx) => {
+      const valRange = valueRanges[idx];
+      const rawValues = valRange && valRange.values 
+        ? valRange.values.map(row => (row[0] || '').trim())
+        : [];
+      colValuesMap[key] = rawValues;
+      if (key === 'email') {
+        rowCount = rawValues.length;
+      }
+    });
+
+    // For any key not fetched, fill with empty arrays matching length
+    colMappings.forEach(mapping => {
+      const key = mapping.key;
+      if (!colValuesMap[key]) {
+        colValuesMap[key] = new Array(rowCount).fill('');
+      }
+    });
+
+    // Populate local variables
+    emailIndex = colValuesMap['email'].map(v => v.toLowerCase());
+    nameIndex = colValuesMap['name'];
+    mobileIndex = colValuesMap['mobile'].map(v => v.replace(/[^0-9+]/g, ''));
+    alternateNumberIndex = colValuesMap['altPhone'];
+    courseNameIndex = colValuesMap['course'];
+    paymentModeIndex = colValuesMap['payment'];
+    overallAmountPaidIndex = colValuesMap['paid'];
+    nbfcStatusIndex = colValuesMap['nbfc'];
+    commonNameIndex = colValuesMap['common'];
+    batchStartDateIndex = colValuesMap['batch'];
 
     // Save back to IndexedDB
     try {
@@ -637,6 +783,13 @@ async function fetchSpreadsheetIndex(forceRefresh = false) {
         emails: emailIndex,
         names: nameIndex,
         mobiles: mobileIndex,
+        alternateNumbers: alternateNumberIndex,
+        courseNames: courseNameIndex,
+        paymentModes: paymentModeIndex,
+        overallAmountPaids: overallAmountPaidIndex,
+        nbfcStatuses: nbfcStatusIndex,
+        commonNames: commonNameIndex,
+        batchStartDates: batchStartDateIndex,
         timestamp: Date.now()
       };
       await setCacheItem('sheet_index_cache', cacheObj);
@@ -647,6 +800,7 @@ async function fetchSpreadsheetIndex(forceRefresh = false) {
     showLoader(false);
     updateIndexStatus(`Index cached: ${emailIndex.length.toLocaleString()} records.`, 'green');
     
+    initializeFilters();
     return { headers: sheetHeaders, emails: emailIndex, names: nameIndex, mobiles: mobileIndex };
   } catch (err) {
     showLoader(false);
@@ -1135,4 +1289,247 @@ function updateHistoryUI() {
     });
     historyList.appendChild(chip);
   });
+}
+
+// ==========================================
+// UPGRADED FILTER PANEL & CSV EXPORTER LOGIC
+// ==========================================
+
+function initializeFilters() {
+  if (!commonNameIndex || !batchStartDateIndex) return;
+
+  const uniqueCommon = new Set();
+  const uniqueDates = new Set();
+
+  for (let i = 0; i < emailIndex.length; i++) {
+    const common = commonNameIndex[i];
+    const date = batchStartDateIndex[i];
+    if (common && common !== '-') uniqueCommon.add(common);
+    if (date && date !== '-') uniqueDates.add(date);
+  }
+
+  uniqueCommonNames = Array.from(uniqueCommon).sort();
+  uniqueBatchDates = Array.from(uniqueDates).sort((a, b) => {
+    const parseDate = (dStr) => {
+      if (!dStr) return 0;
+      const parts = dStr.split('/');
+      if (parts.length === 3) {
+        return new Date(parts[2], parts[1]-1, parts[0]).getTime();
+      }
+      return new Date(dStr).getTime() || 0;
+    };
+    return parseDate(a) - parseDate(b);
+  });
+
+  populateFilterDropdowns();
+  resetFilters();
+}
+
+function populateFilterDropdowns() {
+  if (!selCommonName || !selBatchDate) return;
+
+  selCommonName.innerHTML = '<option value="">All Common Names</option>';
+  selBatchDate.innerHTML = '<option value="">All Batch Dates</option>';
+
+  uniqueCommonNames.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    selCommonName.appendChild(opt);
+  });
+
+  uniqueBatchDates.forEach(date => {
+    const opt = document.createElement('option');
+    opt.value = date;
+    opt.textContent = date;
+    selBatchDate.appendChild(opt);
+  });
+}
+
+function applyFilters() {
+  if (!emailIndex) return;
+
+  const selectedCommon = selCommonName.value;
+  const selectedBatch = selBatchDate.value;
+
+  const matches = [];
+
+  for (let i = 0; i < emailIndex.length; i++) {
+    const common = commonNameIndex[i] || '';
+    const batch = batchStartDateIndex[i] || '';
+
+    const commonMatch = !selectedCommon || common === selectedCommon;
+    const batchMatch = !selectedBatch || batch === selectedBatch;
+
+    if (commonMatch && batchMatch) {
+      matches.push(i);
+    }
+  }
+
+  filteredStudentIndices = matches;
+  filterCurrentPage = 1;
+
+  if (matches.length > 0) {
+    btnDownloadCSV.removeAttribute('disabled');
+    filterResultsCard.classList.remove('hidden');
+  } else {
+    btnDownloadCSV.setAttribute('disabled', 'true');
+    filterResultsCard.classList.remove('hidden');
+  }
+
+  renderFilterTable();
+}
+
+function resetFilters() {
+  if (selCommonName) selCommonName.value = '';
+  if (selBatchDate) selBatchDate.value = '';
+  
+  if (emailIndex) {
+    filteredStudentIndices = Array.from({ length: emailIndex.length }, (_, i) => i);
+    btnDownloadCSV.removeAttribute('disabled');
+    filterResultsCard.classList.remove('hidden');
+  } else {
+    filteredStudentIndices = [];
+    btnDownloadCSV.setAttribute('disabled', 'true');
+    filterResultsCard.classList.add('hidden');
+  }
+  
+  filterCurrentPage = 1;
+  renderFilterTable();
+}
+
+function renderFilterTable() {
+  if (!tableFilterBody) return;
+
+  tableFilterBody.innerHTML = '';
+  
+  const totalCount = filteredStudentIndices.length;
+  lblFilterResultsCount.textContent = totalCount > 0 
+    ? `Found ${totalCount.toLocaleString()} matching records` 
+    : 'No student records match filters';
+
+  if (totalCount === 0) {
+    tableFilterBody.innerHTML = '<tr><td colspan="3" style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-style: italic;">No records found. Select different filters.</td></tr>';
+    btnFilterPrev.setAttribute('disabled', 'true');
+    btnFilterNext.setAttribute('disabled', 'true');
+    lblFilterPage.textContent = 'Page 1 of 1';
+    return;
+  }
+
+  const totalPages = Math.ceil(totalCount / FILTER_PAGE_SIZE);
+  
+  if (filterCurrentPage > totalPages) filterCurrentPage = totalPages;
+  if (filterCurrentPage < 1) filterCurrentPage = 1;
+
+  const startIndex = (filterCurrentPage - 1) * FILTER_PAGE_SIZE;
+  const endIndex = Math.min(startIndex + FILTER_PAGE_SIZE, totalCount);
+
+  for (let idx = startIndex; idx < endIndex; idx++) {
+    const origIdx = filteredStudentIndices[idx];
+    const name = nameIndex[origIdx] || 'Unnamed Student';
+    const email = emailIndex[origIdx] || '';
+    const common = commonNameIndex[origIdx] || '-';
+    const batch = batchStartDateIndex[origIdx] || '-';
+
+    const tr = document.createElement('tr');
+    tr.className = 'interactive-row';
+    tr.innerHTML = `
+      <td>
+        <span class="row-student-name font-semibold">${name}</span>
+        <span class="row-student-email text-small" style="display: block; color: var(--text-muted);">${displayVal(email, 'email')}</span>
+      </td>
+      <td>${common}</td>
+      <td>${batch}</td>
+    `;
+
+    tr.addEventListener('click', () => {
+      if (email) {
+        txtSearchEmail.value = email;
+        searchStudent(email);
+      }
+    });
+
+    tableFilterBody.appendChild(tr);
+  }
+
+  lblFilterPage.textContent = `Page ${filterCurrentPage} of ${totalPages}`;
+  
+  if (filterCurrentPage > 1) {
+    btnFilterPrev.removeAttribute('disabled');
+  } else {
+    btnFilterPrev.setAttribute('disabled', 'true');
+  }
+
+  if (filterCurrentPage < totalPages) {
+    btnFilterNext.removeAttribute('disabled');
+  } else {
+    btnFilterNext.setAttribute('disabled', 'true');
+  }
+}
+
+function changeFilterPage(direction) {
+  filterCurrentPage += direction;
+  renderFilterTable();
+}
+
+function downloadFilteredCSV() {
+  if (filteredStudentIndices.length === 0) {
+    alert('No records matching filters to download.');
+    return;
+  }
+
+  const csvHeaders = [
+    'Student Name',
+    'Email id',
+    'Mobile',
+    'Alternate Number',
+    'Course Name',
+    'Payment Mode',
+    'Over all Amount Paid',
+    'NBFC Status',
+    'Common Name',
+    'Batch Start Date'
+  ];
+
+  const escapeCSV = (val) => {
+    if (val === undefined || val === null) return '""';
+    let str = String(val).trim();
+    str = str.replace(/"/g, '""');
+    return `"${str}"`;
+  };
+
+  const csvRows = [];
+  csvRows.push(csvHeaders.join(','));
+
+  filteredStudentIndices.forEach(idx => {
+    const row = [
+      escapeCSV(nameIndex[idx]),
+      escapeCSV(emailIndex[idx]),
+      escapeCSV(mobileIndex[idx]),
+      escapeCSV(alternateNumberIndex[idx]),
+      escapeCSV(courseNameIndex[idx]),
+      escapeCSV(paymentModeIndex[idx]),
+      escapeCSV(overallAmountPaidIndex[idx]),
+      escapeCSV(nbfcStatusIndex[idx]),
+      escapeCSV(commonNameIndex[idx]),
+      escapeCSV(batchStartDateIndex[idx])
+    ];
+    csvRows.push(row.join(','));
+  });
+
+  const csvContent = csvRows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  
+  const selectedCommon = selCommonName.value ? selCommonName.value.replace(/[^a-zA-Z0-9-_]/g, '_') : 'All_Common';
+  const selectedBatch = selBatchDate.value ? selBatchDate.value.replace(/[^a-zA-Z0-9-_]/g, '_') : 'All_Dates';
+  link.setAttribute('download', `Students_Filter_${selectedCommon}_${selectedBatch}.csv`);
+  
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
