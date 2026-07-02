@@ -1378,14 +1378,16 @@ function handleCommonNameInput(e) {
 }
 
 function renderCommonNameSuggestions(matches) {
-  if (!filterCommonNameSuggestions) return;
-  
-  filterCommonNameSuggestions.innerHTML = '';
-  
-  if (matches.length === 0) {
-    filterCommonNameSuggestions.classList.add('hidden');
-    return;
-  }
+  // Remove any existing portal dropdown
+  let portalDropdown = document.getElementById('portalCommonNameDropdown');
+  if (portalDropdown) portalDropdown.remove();
+
+  if (matches.length === 0) return;
+
+  // Create portal dropdown appended to body to escape backdrop-filter stacking context
+  portalDropdown = document.createElement('div');
+  portalDropdown.id = 'portalCommonNameDropdown';
+  portalDropdown.className = 'custom-dropdown-list';
 
   const maxDisplay = Math.min(matches.length, 50);
   for (let i = 0; i < maxDisplay; i++) {
@@ -1394,26 +1396,52 @@ function renderCommonNameSuggestions(matches) {
     itemDiv.className = 'custom-dropdown-item';
     itemDiv.textContent = name;
     itemDiv.title = name;
-    
-    itemDiv.addEventListener('click', () => {
+
+    itemDiv.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // prevent blur before click registers
       txtCommonName.value = name;
-      filterCommonNameSuggestions.classList.add('hidden');
+      closeCommonNamePortal();
       handleCommonNameChange();
     });
-    
-    filterCommonNameSuggestions.appendChild(itemDiv);
+
+    portalDropdown.appendChild(itemDiv);
   }
-  
-  filterCommonNameSuggestions.classList.remove('hidden');
+
+  document.body.appendChild(portalDropdown);
+
+  // Position it directly under the input using getBoundingClientRect
+  positionCommonNamePortal();
+}
+
+function positionCommonNamePortal() {
+  const portal = document.getElementById('portalCommonNameDropdown');
+  if (!portal || !txtCommonName) return;
+  const rect = txtCommonName.getBoundingClientRect();
+  portal.style.position = 'fixed';
+  portal.style.top = (rect.bottom + 4) + 'px';
+  portal.style.left = rect.left + 'px';
+  portal.style.width = rect.width + 'px';
+  portal.style.zIndex = '99999';
+  portal.style.display = 'block';
+}
+
+function closeCommonNamePortal() {
+  const portal = document.getElementById('portalCommonNameDropdown');
+  if (portal) portal.remove();
 }
 
 function handleOutsideFiltersClick(e) {
-  if (txtCommonName && filterCommonNameSuggestions) {
-    if (!txtCommonName.contains(e.target) && !filterCommonNameSuggestions.contains(e.target)) {
-      filterCommonNameSuggestions.classList.add('hidden');
+  const portal = document.getElementById('portalCommonNameDropdown');
+  if (portal && txtCommonName) {
+    if (!txtCommonName.contains(e.target) && !portal.contains(e.target)) {
+      closeCommonNamePortal();
     }
   }
 }
+
+// Close portal on scroll/resize too
+window.addEventListener('scroll', closeCommonNamePortal, true);
+window.addEventListener('resize', () => { positionCommonNamePortal(); });
 
 // Add click listener outside to close common name suggestions
 document.addEventListener('click', handleOutsideFiltersClick);
