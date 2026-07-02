@@ -30,6 +30,26 @@ let isPrivacyMode = false;
 let currentStudent = null;
 let currentStudentRawRow = null;
 
+// Date Formatting Utility
+function formatDateDisplay(dateStr) {
+  if (!dateStr || dateStr === '-') return '-';
+  try {
+    // If it's already a short date, just return it
+    if (dateStr.length < 15 && !dateStr.includes('GMT')) return dateStr;
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    
+    // Format: "Jul 25, 2026"
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 // IndexedDB Caching Utility Functions
 const DB_NAME = 'LiveAccessCache';
 const DB_VERSION = 1;
@@ -1369,7 +1389,7 @@ function displayStudentDetails(student, headers, rowData) {
   // Section 1: Course & Fees
   document.getElementById('valCourseName').textContent = displayVal(getVal(student, ['Course Name']));
   document.getElementById('valCommonName').textContent = displayVal(getVal(student, ['Common Name']));
-  document.getElementById('valBatchStart').textContent = displayVal(getVal(student, ['Batch Start Date']));
+  document.getElementById('valBatchStart').textContent = displayVal(formatDateDisplay(getVal(student, ['Batch Start Date'])));
   document.getElementById('valFeeNoGST').textContent = displayVal(getVal(student, ['Course Fees(Exclusive of GST)', 'Course Fees (Exclusive of GST)']), 'currency');
   document.getElementById('valFeeWithGST').textContent = displayVal(getVal(student, ['Course Fees ( Inclusive of GST)', 'Course Fees (Inclusive of GST)']), 'currency');
   document.getElementById('valGSTStatus').textContent = displayVal(getVal(student, ['GST Yes/NO', 'GST YesNo']));
@@ -1524,7 +1544,7 @@ function populateBatchDatesSelect(datesArray) {
   datesArray.forEach(date => {
     const opt = document.createElement('option');
     opt.value = date;
-    opt.textContent = date;
+    opt.textContent = formatDateDisplay(date);
     selBatchDate.appendChild(opt);
   });
 }
@@ -1810,7 +1830,7 @@ function renderFilterTable() {
     const name = nameIndex[origIdx] || 'Unnamed Student';
     const email = emailIndex[origIdx] || '';
     const common = commonNameIndex[origIdx] || '-';
-    const batch = batchStartDateIndex[origIdx] || '-';
+    const batch = formatDateDisplay(batchStartDateIndex[origIdx] || '-');
 
     const tr = document.createElement('tr');
     tr.className = 'interactive-row';
