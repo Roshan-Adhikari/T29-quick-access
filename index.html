@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Sheets Live Quick Access</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Load Google Identity Services SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body class="dark-theme">
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>LiveAccess</h1>
+          <span>Google Sheets Quick Query</span>
+        </div>
+      </div>
+      
+      <div class="header-controls">
+        <button id="btnSettings" class="btn btn-secondary btn-icon" title="Configure Spreadsheet Connection">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>Connection Settings</span>
+        </button>
+        <div id="authContainer">
+          <button id="btnConnect" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" style="margin-right: 8px;">
+              <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.579-7.859-8s3.529-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 2.192 15.34 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.478 0 10.793-4.537 10.793-10.978 0-.74-.08-1.305-.175-1.864H12.24z"/>
+            </svg>
+            Connect Google Account
+          </button>
+          <div id="userProfile" class="user-profile hidden">
+            <div class="user-avatar" id="userAvatar">U</div>
+            <div class="user-info">
+              <span id="userName" class="user-name">User Account</span>
+              <span id="userEmail" class="user-email">email@domain.com</span>
+            </div>
+            <button id="btnSignOut" class="btn btn-tertiary btn-small">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="app-main">
+      <!-- Welcome / Setup State -->
+      <section id="sectionSetup" class="content-section card glass welcome-card">
+        <div class="welcome-badge">GETTING STARTED</div>
+        <h2>Welcome to LiveAccess</h2>
+        <p>Retrieve and query student profiles directly from your live Google Sheet in real-time. By index caching the email column locally, searches are executed in less than a second even on lists exceeding 50,000 records.</p>
+        
+        <div class="setup-steps">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h3>Configure Sheet</h3>
+            <p>Click on the **Connection Settings** button to add your Google Client ID, Spreadsheet ID, and Sheet Name.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h3>Google Login</h3>
+            <p>Authenticate with your email ID. The authentication runs directly via Google's OAuth2 securely.</p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h3>Instant Queries</h3>
+            <p>Search any student profile by email. The app fetches the target data point instantly.</p>
+          </div>
+        </div>
+
+        <button id="btnStartSetup" class="btn btn-primary btn-large">Configure Connection Now</button>
+      </section>
+
+      <!-- Searching / Active App State -->
+      <section id="sectionSearch" class="content-section hidden">
+        <!-- Search Box -->
+        <div class="card glass search-card">
+          <div class="search-title-row">
+            <h2>Query Student Directory</h2>
+            <div class="status-indicator" id="indexStatus">
+              <span class="status-dot dot-yellow"></span>
+              <span class="status-text">Connecting to Spreadsheet...</span>
+            </div>
+          </div>
+          <div class="search-form">
+            <div class="search-input-wrapper">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input type="email" id="txtSearchEmail" placeholder="Enter student email ID (e.g. jaydohare2000@gmail.com)" autocomplete="off" disabled>
+            </div>
+            <button id="btnSearch" class="btn btn-primary btn-large" disabled>Search Student</button>
+            <button id="btnClearCache" class="btn btn-secondary btn-icon" title="Reload sheet structure & refresh index cache">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              <span>Refresh Index</span>
+            </button>
+          </div>
+          <div class="search-hints">
+            <span><strong>Tip:</strong> Press Enter to search. The email index is cached in memory for instant multi-record lookups.</span>
+          </div>
+        </div>
+
+        <!-- Progress & Loading Status -->
+        <div id="loaderContainer" class="loader-container hidden">
+          <div class="spinner">
+            <div class="spinner-circle"></div>
+          </div>
+          <div class="loader-text-group">
+            <h4 id="loaderHeadline">Running API Requests</h4>
+            <p id="loaderSubtext">Executing cell value index download...</p>
+          </div>
+        </div>
+
+        <!-- Dashboard Result Area -->
+        <div id="dashboardResults" class="dashboard-grid hidden">
+          
+          <!-- Student Banner / Quick Info -->
+          <div class="card glass banner-card col-span-3">
+            <div class="banner-content">
+              <div class="banner-avatar" id="studentAvatar">SL</div>
+              <div class="banner-text">
+                <div class="student-header">
+                  <h2 id="lblStudentName">Student Name</h2>
+                  <span id="badgeCohort" class="badge">Cohort ID</span>
+                  <span id="badgeCategory" class="badge badge-accent">Category</span>
+                </div>
+                <div class="student-sub">
+                  <span id="lblStudentEmail" class="sub-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><path d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+                    email@gmail.com
+                  </span>
+                  <span id="lblStudentPhone" class="sub-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><path d="M2.25 6.622M2.25 9c0 5.108 4.027 9.24 9 9.24 2.894 0 5.5-.327 7.747-.94a.75.75 0 00.563-.647c.187-1.393.308-2.8-.073-4.148a.75.75 0 00-.702-.513H15.02a.75.75 0 00-.69.44l-.79 1.58A13.23 13.23 0 017.5 9.79l1.58-.79a.75.75 0 00.44-.69v-3.72a.75.75 0 00-.513-.702A24.819 24.819 0 004.1 3.81a.75.75 0 00-.647.563C2.827 6.6 2.25 9 2.25 9z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    +91 9999999999
+                  </span>
+                  <span id="lblStudentAltPhone" class="sub-item">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><path d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.824-1.802-5.14-4.118-6.942-6.942l1.293-.97c.362-.271.527-.834.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Alt: +91 8888888888
+                  </span>
+                </div>
+              </div>
+              <div class="banner-right">
+                <div class="status-summary-box">
+                  <div class="summary-label">NBFC Status</div>
+                  <div class="summary-value" id="lblBannerNBFCStatus">Pending</div>
+                </div>
+                <div class="status-summary-box">
+                  <div class="summary-label">Closed Status</div>
+                  <div class="summary-value" id="lblBannerClosedStatus">-</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 1: Course & Fees -->
+          <div class="card glass dashboard-card">
+            <div class="card-header">
+              <div class="card-icon blue-gradient">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <h3>Course Details & Fees</h3>
+            </div>
+            <div class="details-list">
+              <div class="detail-item"><span class="lbl">Course Name</span><span class="val font-semibold" id="valCourseName">-</span></div>
+              <div class="detail-item"><span class="lbl">Common Name</span><span class="val" id="valCommonName">-</span></div>
+              <div class="detail-item"><span class="lbl">Batch Start Date</span><span class="val" id="valBatchStart">-</span></div>
+              <div class="detail-item divider"></div>
+              <div class="detail-item"><span class="lbl">Course Fee (w/o GST)</span><span class="val font-mono" id="valFeeNoGST">-</span></div>
+              <div class="detail-item"><span class="lbl">Course Fee (with GST)</span><span class="val font-mono font-semibold text-blue" id="valFeeWithGST">-</span></div>
+              <div class="detail-item"><span class="lbl">GST Yes/No</span><span class="val" id="valGSTStatus">-</span></div>
+              <div class="detail-item"><span class="lbl">GST Taken</span><span class="val font-mono" id="valGSTTaken">-</span></div>
+            </div>
+          </div>
+
+          <!-- Section 2: Scholarships & Net Fees -->
+          <div class="card glass dashboard-card">
+            <div class="card-header">
+              <div class="card-icon green-gradient">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5M5.25 7.5h13.5m-12 3h10.5m-12 3h12a2.25 2.25 0 002.25-2.25V4.5a2.25 2.25 0 00-2.25-2.25H3.75A2.25 2.25 0 001.5 4.5v10.5A2.25 2.25 0 003.75 17.25z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <h3>Scholarship & Final Fees</h3>
+            </div>
+            <div class="details-list">
+              <div class="detail-item"><span class="lbl">Scholarship Category</span><span class="val" id="valScholarshipCat">-</span></div>
+              <div class="detail-item"><span class="lbl">Scholarship %</span><span class="val text-green font-semibold" id="valScholarshipPct">-</span></div>
+              <div class="detail-item"><span class="lbl">Scholarship Amount</span><span class="val font-mono" id="valScholarshipAmt">-</span></div>
+              <div class="detail-item divider"></div>
+              <div class="detail-item"><span class="lbl">Effective Fee (w/o GST)</span><span class="val font-mono font-semibold" id="valEffectiveFee">-</span></div>
+              <div class="detail-item"><span class="lbl">Actual Full Fee (w/o GST)</span><span class="val font-mono" id="valActualFullFee">-</span></div>
+              <div class="detail-item"><span class="lbl">Actual Registration Fee</span><span class="val font-mono" id="valActualRegFee">-</span></div>
+              <div class="detail-item"><span class="lbl">Actual Remaining Fee</span><span class="val font-mono font-semibold text-green" id="valActualRemFee">-</span></div>
+            </div>
+          </div>
+
+          <!-- Section 3: Fees & UTR Status -->
+          <div class="card glass dashboard-card">
+            <div class="card-header">
+              <div class="card-icon yellow-gradient">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h3.75M9 15h3.375c.9 0 1.625-.724 1.625-1.625V13.5c0-.9-.725-1.625-1.625-1.625H9.75M12 9V3m0 18v-3M3 12h3m15 0h-3m-6.75-9H14.25A2.25 2.25 0 0116.5 5.25v13.5A2.25 2.25 0 0114.25 21H9.75A2.25 2.25 0 017.5 18.75V5.25A2.25 2.25 0 019.75 3z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <h3>Test & Registration Fees</h3>
+            </div>
+            <div class="details-list">
+              <div class="detail-item"><span class="lbl">Test Fee Paid</span><span class="val font-mono text-yellow" id="valTestFeePaid">-</span></div>
+              <div class="detail-item"><span class="lbl">Test Fee Date</span><span class="val" id="valTestFeeDate">-</span></div>
+              <div class="detail-item"><span class="lbl">Test Fee UTR</span><span class="val font-mono text-small" id="valTestFeeUTR">-</span></div>
+              <div class="detail-item divider"></div>
+              <div class="detail-item"><span class="lbl">Registration Fee Paid</span><span class="val font-mono text-yellow" id="valRegFeePaid">-</span></div>
+              <div class="detail-item"><span class="lbl">Date of Reg Fee</span><span class="val" id="valRegFeeDate">-</span></div>
+              <div class="detail-item"><span class="lbl">Registration UTR</span><span class="val font-mono text-small" id="valRegFeeUTR">-</span></div>
+              <div class="detail-item"><span class="lbl">Student Category</span><span class="val" id="valStudentCat">-</span></div>
+            </div>
+          </div>
+
+          <!-- Section 4: Loan & NBFC Status -->
+          <div class="card glass dashboard-card col-span-2">
+            <div class="card-header">
+              <div class="card-icon red-gradient">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <h3>Loan & Disbursal Status (NBFC)</h3>
+            </div>
+            <div class="loan-dashboard-layout">
+              <div class="details-list">
+                <div class="detail-item"><span class="lbl">Payment Mode</span><span class="val font-semibold" id="valPaymentMode">-</span></div>
+                <div class="detail-item"><span class="lbl">NBFC Name</span><span class="val font-semibold text-red" id="valNBFCName">-</span></div>
+                <div class="detail-item"><span class="lbl">Lender Name (Propelld)</span><span class="val" id="valLenderName">-</span></div>
+                <div class="detail-item"><span class="lbl">NBFC Application ID</span><span class="val font-mono" id="valNBFCAppID">-</span></div>
+                <div class="detail-item"><span class="lbl">NBFC Status</span><span class="val badge-container" id="valNBFCStatus">-</span></div>
+                <div class="detail-item"><span class="lbl">Foreclosure / Refund</span><span class="val" id="valForeclosureStatus">-</span></div>
+              </div>
+              <div class="vertical-divider"></div>
+              <div class="details-list">
+                <div class="detail-item"><span class="lbl">Loan Amount</span><span class="val font-mono font-semibold" id="valLoanAmount">-</span></div>
+                <div class="detail-item"><span class="lbl">Disbursed Amount</span><span class="val font-mono text-green" id="valDisbursedAmount">-</span></div>
+                <div class="detail-item"><span class="lbl">Disbursed / Paid Date</span><span class="val" id="valDisbursedDate">-</span></div>
+                <div class="detail-item"><span class="lbl">Disbursal UTR</span><span class="val font-mono text-small" id="valDisbursalUTR">-</span></div>
+                <div class="detail-item"><span class="lbl">Overall Amount Paid</span><span class="val font-mono" id="valOverallAmountPaid">-</span></div>
+                <div class="detail-item"><span class="lbl">Bajaj Adjusted Amt</span><span class="val font-mono" id="valBajajAdjusted">-</span></div>
+              </div>
+              <div class="vertical-divider"></div>
+              <div class="details-list">
+                <div class="detail-item"><span class="lbl">EMI Amount</span><span class="val font-mono" id="valEMIAmount">-</span></div>
+                <div class="detail-item"><span class="lbl">EMI Tenure (Months)</span><span class="val" id="valEMITenure">-</span></div>
+                <div class="detail-item"><span class="lbl">EMI Start Date</span><span class="val" id="valEMIStartDate">-</span></div>
+                <div class="detail-item"><span class="lbl">Subvention Amount</span><span class="val font-mono" id="valSubventionAmt">-</span></div>
+                <div class="detail-item"><span class="lbl">Closed/Not Closed</span><span class="val font-semibold" id="valClosedStatus">-</span></div>
+                <div class="detail-item"><span class="lbl">Upsell Status</span><span class="val" id="valUpsellStatus">-</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 5: Cohort Timeline & Admin Details -->
+          <div class="card glass dashboard-card">
+            <div class="card-header">
+              <div class="card-icon purple-gradient">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <h3>Timeline & Administration</h3>
+            </div>
+            <div class="details-list">
+              <div class="detail-item"><span class="lbl">Retention Week</span><span class="val font-semibold" id="valRetentionWeek">-</span></div>
+              <div class="detail-item"><span class="lbl">Prateek Sir Week</span><span class="val" id="valPrateekWeek">-</span></div>
+              <div class="detail-item"><span class="lbl">Deadline</span><span class="val text-orange" id="valDeadline">-</span></div>
+              <div class="detail-item"><span class="lbl">SOP / Weekly Date</span><span class="val" id="valSOPDate">-</span></div>
+              <div class="detail-item divider"></div>
+              <div class="detail-item"><span class="lbl">Referral Amount</span><span class="val font-mono" id="valReferralAmount">-</span></div>
+              <div class="detail-item"><span class="lbl">BITSoM / Masai</span><span class="val" id="valMasaiBitSom">-</span></div>
+              <div class="detail-item"><span class="lbl">Bucket</span><span class="val" id="valBucket">-</span></div>
+            </div>
+          </div>
+
+          <!-- Bottom: Full Row Raw JSON View for debugging/quick check -->
+          <div class="card glass collapsable-card col-span-3">
+            <details class="json-details">
+              <summary>View Complete Raw Data Object</summary>
+              <pre class="raw-json-block"><code id="codeRawJSON">{}</code></pre>
+            </details>
+          </div>
+        </div>
+
+        <!-- History panel -->
+        <div class="card glass history-card">
+          <h3>Recent Lookups</h3>
+          <div id="historyList" class="history-list">
+            <div class="no-history">No recent searches in this session</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="modalSettings" class="modal-backdrop hidden">
+      <div class="modal card glass">
+        <div class="modal-header">
+          <h2>Spreadsheet & API Connection Settings</h2>
+          <button id="btnCloseSettings" class="btn-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form id="formSettings">
+            <div class="form-group">
+              <label for="cfgClientId">Google OAuth Client ID</label>
+              <input type="text" id="cfgClientId" placeholder="Enter your Google OAuth Client ID" required>
+              <span class="field-help">Obtained from Google Cloud Console under Credentials > OAuth 2.0 Client IDs. Must allow origin <code>http://localhost</code> or current address.</span>
+            </div>
+            
+            <div class="form-group">
+              <label for="cfgSpreadsheetId">Google Spreadsheet ID</label>
+              <input type="text" id="cfgSpreadsheetId" placeholder="Enter Spreadsheet ID" required>
+              <span class="field-help">The long alpha-numeric string in the spreadsheet URL: <code>https://docs.google.com/spreadsheets/d/[ID_HERE]/edit</code></span>
+            </div>
+            
+            <div class="form-group-row">
+              <div class="form-group">
+                <label for="cfgSheetName">Sheet Name</label>
+                <input type="text" id="cfgSheetName" placeholder="e.g. Master Data" value="Master Data" required>
+                <span class="field-help">The name of the sheet tab.</span>
+              </div>
+              <div class="form-group">
+                <label for="cfgSearchColumn">Email Column Header</label>
+                <input type="text" id="cfgSearchColumn" placeholder="e.g. Email id" value="Email id" required>
+                <span class="field-help">Title of column containing emails to search.</span>
+              </div>
+            </div>
+
+            <div class="settings-actions">
+              <button type="button" id="btnSaveSettings" class="btn btn-primary">Save Configuration</button>
+              <button type="button" id="btnUseDefaults" class="btn btn-secondary">Load Sample Settings</button>
+            </div>
+          </form>
+
+          <div class="instructions-accordion">
+            <details>
+              <summary>How do I create a Google Cloud Project & OAuth Client ID?</summary>
+              <div class="instructions-content text-small">
+                <ol>
+                  <li>Go to the <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>.</li>
+                  <li>Create a new project (e.g., "LiveAccess Sheet Searcher").</li>
+                  <li>Go to <strong>APIs & Services > OAuth Consent Screen</strong>, configure as <strong>External</strong> or <strong>Internal</strong>, input basic developer details, and add the scope <code>.../auth/spreadsheets.readonly</code> (Google Sheets API Read-only). Add your own email under "Test Users" if your app status is in Testing mode.</li>
+                  <li>Go to <strong>APIs & Services > Credentials</strong>, click <strong>Create Credentials</strong> and select <strong>OAuth Client ID</strong>.</li>
+                  <li>Set application type to <strong>Web application</strong>.</li>
+                  <li>Under <strong>Authorized JavaScript origins</strong>, add:
+                    <ul>
+                      <li><code>http://localhost</code></li>
+                      <li><code>http://localhost:5000</code></li>
+                      <li><code>http://127.0.0.1</code></li>
+                      <li><code>http://127.0.0.1:5000</code></li>
+                      <li>(Or the actual URL hosting the web page)</li>
+                    </ul>
+                  </li>
+                  <li>Click <strong>Create</strong>, then copy the generated <strong>Client ID</strong> and paste it above!</li>
+                  <li>Make sure the <strong>Google Sheets API</strong> is enabled on your Google Cloud project (APIs & Services > Library > search "Google Sheets API" > Enable).</li>
+                </ol>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
