@@ -470,9 +470,7 @@ body {
   top: 100%;
   left: 0;
   right: 0;
-  background: var(--bg-card);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-glass);
   border-radius: 12px;
   max-height: 280px;
@@ -506,7 +504,7 @@ body {
 .autocomplete-suggestion .suggestion-name {
   font-weight: 600;
   font-size: 0.95rem;
-  color: white;
+  color: var(--text-main);
 }
 
 .autocomplete-suggestion .suggestion-sub {
@@ -515,10 +513,16 @@ body {
 }
 
 .autocomplete-suggestion mark {
-  background: hsla(354, 85%, 52%, 0.3);
-  color: white;
+  background: hsla(354, 85%, 52%, 0.20);
+  color: var(--color-primary-dark);
+  font-weight: 600;
   border-radius: 2px;
   padding: 0 0.1rem;
+}
+
+.dark-theme .autocomplete-suggestion mark {
+  color: white;
+  background: hsla(354, 85%, 52%, 0.4);
 }
 
 
@@ -1420,10 +1424,14 @@ body:not(.dark-theme) .filter-results-table th {
 .custom-dropdown-item {
   padding: 0.65rem 0.875rem;
   font-size: 0.9rem;
-  color: var(--text-main);
+  color: hsl(222, 47%, 11%);
   cursor: pointer;
   transition: var(--transition-fast);
   text-align: left;
+}
+
+.dark-theme .custom-dropdown-item {
+  color: hsl(210, 38%, 95%);
 }
 
 .custom-dropdown-item:hover, .custom-dropdown-item.selected {

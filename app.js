@@ -1462,20 +1462,35 @@ function updateNBFCDashboard() {
   }
 
   const counts = {};
+  let totalActive = 0;
+
   filteredStudentIndices.forEach(idx => {
     let status = nbfcStatusIndex[idx] || '-';
     status = status.trim();
     if (!status) status = '-';
+    
     counts[status] = (counts[status] || 0) + 1;
+
+    // Sum all except dropouts
+    if (!status.toLowerCase().includes('drop')) {
+      totalActive++;
+    }
   });
 
   const keys = Object.keys(counts);
-  if (keys.length === 0 || (keys.length === 1 && keys[0] === '-')) {
+  if (keys.length === 0) {
     filterNBFCDashboard.classList.add('hidden');
     return;
   }
 
-  filterNBFCDashboard.innerHTML = '<div class="status-counts-title">NBFC Status Summary</div>';
+  // Set header and active student count (excluding dropouts)
+  filterNBFCDashboard.innerHTML = `
+    <div class="status-counts-title">NBFC Status Summary</div>
+    <div class="status-count-badge status-total-active" style="border-color: var(--color-blue); font-weight: 700;">
+      <span>Total (Excl. Dropouts)</span>
+      <span class="count-number" style="background: var(--color-blue);">${totalActive}</span>
+    </div>
+  `;
 
   keys.sort((a, b) => counts[b] - counts[a]);
 
