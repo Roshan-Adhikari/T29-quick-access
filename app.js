@@ -250,29 +250,30 @@ function loadConfig() {
   const defaultClientId = '837920518571-n8mv0vkh69iubhi0p8nfgb1f7cf2v3dm.apps.googleusercontent.com';
   const defaultSpreadsheetId = '1yvC466_OqOeUotT8okfbKFE3QR028VzxCmsZL5GLGR8';
 
-  const clientId = localStorage.getItem('cfg_client_id') || defaultClientId;
-  const spreadsheetId = localStorage.getItem('cfg_spreadsheet_id') || defaultSpreadsheetId;
-  const sheetName = localStorage.getItem('cfg_sheet_name') || 'Master Data';
-  const searchColumn = localStorage.getItem('cfg_search_column') || 'Email id';
+  const clientId       = localStorage.getItem('cfg_client_id')       || defaultClientId;
+  const spreadsheetId  = localStorage.getItem('cfg_spreadsheet_id')  || defaultSpreadsheetId;
+  const sheetName      = localStorage.getItem('cfg_sheet_name')      || 'Master Data';
+  const searchColumn   = localStorage.getItem('cfg_search_column')   || 'Email id';
+  const appsScriptUrl  = localStorage.getItem('cfg_apps_script_url') || '';
+  const appsScriptToken= localStorage.getItem('cfg_apps_script_token')|| '';
 
-  document.getElementById('cfgClientId').value = clientId;
-  document.getElementById('cfgSpreadsheetId').value = spreadsheetId;
-  document.getElementById('cfgSheetName').value = sheetName;
-  document.getElementById('cfgSearchColumn').value = searchColumn;
+  document.getElementById('cfgClientId').value       = clientId;
+  document.getElementById('cfgSpreadsheetId').value  = spreadsheetId;
+  document.getElementById('cfgSheetName').value      = sheetName;
+  document.getElementById('cfgSearchColumn').value   = searchColumn;
+  document.getElementById('cfgAppsScriptUrl').value  = appsScriptUrl;
+  document.getElementById('cfgAppsScriptToken').value= appsScriptToken;
 
-  // Save to localStorage if not already present
-  if (!localStorage.getItem('cfg_client_id')) localStorage.setItem('cfg_client_id', clientId);
+  if (!localStorage.getItem('cfg_client_id'))      localStorage.setItem('cfg_client_id', clientId);
   if (!localStorage.getItem('cfg_spreadsheet_id')) localStorage.setItem('cfg_spreadsheet_id', spreadsheetId);
-  if (!localStorage.getItem('cfg_sheet_name')) localStorage.setItem('cfg_sheet_name', sheetName);
-  if (!localStorage.getItem('cfg_search_column')) localStorage.setItem('cfg_search_column', searchColumn);
+  if (!localStorage.getItem('cfg_sheet_name'))     localStorage.setItem('cfg_sheet_name', sheetName);
+  if (!localStorage.getItem('cfg_search_column'))  localStorage.setItem('cfg_search_column', searchColumn);
 
   if (clientId && spreadsheetId) {
-    // Show search area, hide setup welcome card
     sectionSetup.classList.add('hidden');
     sectionSearch.classList.remove('hidden');
     initGoogleAuth();
   } else {
-    // Show setup welcome card
     sectionSetup.classList.remove('hidden');
     sectionSearch.classList.add('hidden');
   }
@@ -288,27 +289,29 @@ function loadSampleConfig() {
 
 // Save Settings to LocalStorage
 function saveConfig() {
-  const clientId = document.getElementById('cfgClientId').value.trim();
-  let spreadsheetId = document.getElementById('cfgSpreadsheetId').value.trim();
-  const sheetName = document.getElementById('cfgSheetName').value.trim();
-  const searchColumn = document.getElementById('cfgSearchColumn').value.trim();
+  const clientId        = document.getElementById('cfgClientId').value.trim();
+  let   spreadsheetId   = document.getElementById('cfgSpreadsheetId').value.trim();
+  const sheetName       = document.getElementById('cfgSheetName').value.trim();
+  const searchColumn    = document.getElementById('cfgSearchColumn').value.trim();
+  const appsScriptUrl   = document.getElementById('cfgAppsScriptUrl').value.trim();
+  const appsScriptToken = document.getElementById('cfgAppsScriptToken').value.trim();
 
   if (!clientId || !spreadsheetId || !sheetName || !searchColumn) {
-    alert('Please fill out all fields in the configuration.');
+    alert('Please fill out all required fields in the configuration.');
     return;
   }
 
-  // Clean spreadsheet ID if it was pasted as a full URL
   spreadsheetId = extractSpreadsheetId(spreadsheetId);
 
-  localStorage.setItem('cfg_client_id', clientId);
-  localStorage.setItem('cfg_spreadsheet_id', spreadsheetId);
-  localStorage.setItem('cfg_sheet_name', sheetName);
-  localStorage.setItem('cfg_search_column', searchColumn);
+  localStorage.setItem('cfg_client_id',         clientId);
+  localStorage.setItem('cfg_spreadsheet_id',    spreadsheetId);
+  localStorage.setItem('cfg_sheet_name',        sheetName);
+  localStorage.setItem('cfg_search_column',     searchColumn);
+  localStorage.setItem('cfg_apps_script_url',   appsScriptUrl);
+  localStorage.setItem('cfg_apps_script_token', appsScriptToken);
 
-  // Clear in-memory index on sheet configuration changes
   sheetHeaders = null;
-  emailIndex = null;
+  emailIndex   = null;
   updateIndexStatus('Config changed. Reconnecting...', 'yellow');
 
   showSettingsModal(false);
@@ -659,29 +662,34 @@ async function prefetchAllRows(spreadsheetId, sheetName, headers, totalRows) {
 
     while (batchStart <= totalRows + 1) {
       const batchEnd = Math.min(batchStart + BATCH_SIZE - 1, totalRows + 1);
-      const range = `'${sheetName}'!A${batchStart}:${lastColLetter}${batchEnd}`;
 
       updateIndexStatus(`Caching rows ${batchStart}–${batchEnd} of ${totalRows} in background…`, 'yellow');
 
-      // Fetch this batch of rows from Sheets API
-      const data = await callSheetsAPI(spreadsheetId, range);
-      const rows = (data.values || []);
+      let rows = [];
+      if (isAppsScriptConfigured()) {
+        // ⚡ Apps Script batch fetch — no OAuth token needed
+        const data = await callAppsScript('rows', { start: batchStart, end: batchEnd });
+        rows = data.rows || [];
+      } else {
+        // 🐢 Fallback: direct Sheets API
+        const range = `'${sheetName}'!A${batchStart}:${lastColLetter}${batchEnd}`;
+        const data = await callSheetsAPI(spreadsheetId, range);
+        rows = data.values || [];
+      }
 
-      // Write each row individually to IndexedDB using the same key as searchStudent
+      // Write each row to IndexedDB using the same key as searchStudent
       const writePromises = rows.map((rowData, i) => {
-        const rowNum = batchStart + i; // actual sheet row number
+        const rowNum = batchStart + i;
         const cacheKey = `profile_row_${spreadsheetId}_${sheetName}_${rowNum}`;
-        return setCacheItem(cacheKey, { rowData, headers, cachedAt })
-          .catch(() => {}); // silently ignore individual write errors
+        return setCacheItem(cacheKey, { rowData, headers, cachedAt }).catch(() => {});
       });
 
       await Promise.all(writePromises);
-
       rowsCached += rows.length;
       batchStart += BATCH_SIZE;
 
-      // Small delay between batches to avoid hammering the API and triggering rate limits
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Small delay between batches to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, isAppsScriptConfigured() ? 100 : 300));
     }
 
     updateIndexStatus(`✅ All ${rowsCached.toLocaleString()} profiles cached — lookups instant!`, 'green');
@@ -698,14 +706,38 @@ async function prefetchAllRows(spreadsheetId, sheetName, headers, totalRows) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+//  Apps Script helper — fast data fetch with no OAuth overhead
+// ─────────────────────────────────────────────────────────────
+async function callAppsScript(action, extraParams = {}) {
+  const url   = localStorage.getItem('cfg_apps_script_url')   || '';
+  const token = localStorage.getItem('cfg_apps_script_token') || '';
+  const sheet = localStorage.getItem('cfg_sheet_name')        || 'Master Data';
+
+  if (!url || !token) throw new Error('Apps Script not configured');
+
+  const params = new URLSearchParams({ action, token, sheet, ...extraParams });
+  const res = await fetch(`${url}?${params}`);
+  if (!res.ok) throw new Error(`Apps Script error: ${res.status}`);
+
+  const data = await res.json();
+  if (data.error) throw new Error(`Apps Script: ${data.error}`);
+  return data;
+}
+
+function isAppsScriptConfigured() {
+  return !!(localStorage.getItem('cfg_apps_script_url') &&
+            localStorage.getItem('cfg_apps_script_token'));
+}
+
 // Fetch Spreadsheet Index (Headers & Email Column)
 async function fetchSpreadsheetIndex(forceRefresh = false) {
   if (!accessToken) return null;
 
   const rawSpreadsheetId = localStorage.getItem('cfg_spreadsheet_id');
-  const spreadsheetId = extractSpreadsheetId(rawSpreadsheetId);
-  const sheetName = localStorage.getItem('cfg_sheet_name') || 'Master Data';
-  const searchColumn = localStorage.getItem('cfg_search_column') || 'Email id';
+  const spreadsheetId    = extractSpreadsheetId(rawSpreadsheetId);
+  const sheetName        = localStorage.getItem('cfg_sheet_name')     || 'Master Data';
+  const searchColumn     = localStorage.getItem('cfg_search_column')  || 'Email id';
 
   if (!spreadsheetId) {
     updateIndexStatus('Spreadsheet not configured.', 'red');
@@ -751,6 +783,47 @@ async function fetchSpreadsheetIndex(forceRefresh = false) {
   }
 
   try {
+    // ⚡ FAST PATH — Apps Script (single call, < 300ms)
+    if (isAppsScriptConfigured()) {
+      updateIndexStatus('Loading via Apps Script…', 'yellow');
+      showLoader(true, 'Loading Index (Fast Mode)…', 'Fetching all index columns via Apps Script in one call…');
+
+      const data = await callAppsScript('index');
+      const cols = data.columns || {};
+
+      sheetHeaders           = data.headers || [];
+      emailIndex             = (cols.email    || []).map(v => v.toLowerCase());
+      nameIndex              = cols.name      || [];
+      mobileIndex            = (cols.mobile   || []).map(v => v.replace(/[^0-9+]/g, ''));
+      alternateNumberIndex   = cols.altphone  || [];
+      courseNameIndex        = cols.course    || [];
+      paymentModeIndex       = cols.payment   || [];
+      overallAmountPaidIndex = cols.paid      || [];
+      nbfcStatusIndex        = cols.nbfc      || [];
+      commonNameIndex        = cols.common    || [];
+      batchStartDateIndex    = cols.batch     || [];
+
+      // Save to IndexedDB cache
+      try {
+        await setCacheItem('sheet_index_cache', {
+          spreadsheetId, sheetName, searchColumn,
+          headers: sheetHeaders, emails: emailIndex, names: nameIndex,
+          mobiles: mobileIndex, alternateNumbers: alternateNumberIndex,
+          courseNames: courseNameIndex, paymentModes: paymentModeIndex,
+          overallAmountPaids: overallAmountPaidIndex, nbfcStatuses: nbfcStatusIndex,
+          commonNames: commonNameIndex, batchStartDates: batchStartDateIndex,
+          timestamp: Date.now()
+        });
+      } catch (e) { console.warn('Cache write failed:', e); }
+
+      showLoader(false);
+      updateIndexStatus(`⚡ Fast Mode: ${emailIndex.length.toLocaleString()} records loaded.`, 'green');
+      initializeFilters();
+      prefetchAllRows(spreadsheetId, sheetName, sheetHeaders, emailIndex.length);
+      return { headers: sheetHeaders, emails: emailIndex, names: nameIndex, mobiles: mobileIndex };
+    }
+
+    // 🐢 STANDARD PATH — Direct Sheets API (fallback)
     updateIndexStatus('Loading metadata...', 'yellow');
     showLoader(true, 'Reading Header structure...', 'Fetching column headers to locate database indices...');
 

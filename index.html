@@ -473,6 +473,22 @@
               </div>
             </div>
 
+            <div class="settings-divider">
+              <span>⚡ Fast Mode — Google Apps Script (Optional but Recommended)</span>
+            </div>
+
+            <div class="form-group">
+              <label for="cfgAppsScriptUrl">Apps Script Web App URL</label>
+              <input type="text" id="cfgAppsScriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
+              <span class="field-help">Deploy the Apps Script in your Google Sheet and paste the URL here. Makes all lookups instant (&lt; 300ms). Leave blank to use the standard Sheets API.</span>
+            </div>
+
+            <div class="form-group">
+              <label for="cfgAppsScriptToken">Apps Script Secret Token</label>
+              <input type="password" id="cfgAppsScriptToken" placeholder="Your secret token (must match the script)">
+              <span class="field-help">The <code>SECRET_TOKEN</code> value set inside your Apps Script. Keeps your data URL private.</span>
+            </div>
+
             <div class="settings-actions">
               <button type="button" id="btnSaveSettings" class="btn btn-primary">Save Configuration</button>
               <button type="button" id="btnUseDefaults" class="btn btn-secondary">Load Sample Settings</button>
