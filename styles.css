@@ -1446,6 +1446,15 @@ body:not(.dark-theme) .filter-results-table th {
   cursor: pointer;
   user-select: none;
   background-color: var(--bg-main);
+  position: relative;
+  z-index: 50;
+}
+
+.multi-select-btn span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 10px;
 }
 
 .multi-select-checkbox-item {
@@ -1457,6 +1466,7 @@ body:not(.dark-theme) .filter-results-table th {
   color: var(--text-main);
   cursor: pointer;
   transition: var(--transition-fast);
+  white-space: nowrap;
 }
 
 .multi-select-checkbox-item:hover {

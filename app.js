@@ -1389,7 +1389,7 @@ function displayStudentDetails(student, headers, rowData) {
   const batchDateText  = getVal(student, ['Batch Start Date']);
   document.getElementById('lblBannerNBFCStatus').textContent = nbfcStatusText;
   document.getElementById('lblBannerCommonName').textContent = displayVal(commonNameText);
-  document.getElementById('lblBannerBatchDate').textContent  = displayVal(batchDateText);
+  document.getElementById('lblBannerBatchDate').textContent  = displayVal(formatDateDisplay(batchDateText));
  
   // Banner status styling color overrides
   const bannerNbfc = document.getElementById('lblBannerNBFCStatus');
@@ -1421,10 +1421,10 @@ function displayStudentDetails(student, headers, rowData) {
  
   // Section 3: Test & Registration Fees
   document.getElementById('valTestFeePaid').textContent = displayVal(getVal(student, ['Test Fee Paid', 'Test Fee Paid ']), 'currency');
-  document.getElementById('valTestFeeDate').textContent = displayVal(getVal(student, ['Test fee Date']));
+  document.getElementById('valTestFeeDate').textContent = displayVal(formatDateDisplay(getVal(student, ['Test fee Date'])));
   document.getElementById('valTestFeeUTR').textContent = displayVal(getVal(student, ['Test Fee UTR']), 'utr');
   document.getElementById('valRegFeePaid').textContent = displayVal(getVal(student, ['Reg. fee paid']), 'currency');
-  document.getElementById('valRegFeeDate').textContent = displayVal(getVal(student, ['Date of Reg. Fee', 'Date of Reg Fee']));
+  document.getElementById('valRegFeeDate').textContent = displayVal(formatDateDisplay(getVal(student, ['Date of Reg. Fee', 'Date of Reg Fee'])));
   document.getElementById('valRegFeeUTR').textContent = displayVal(getVal(student, ['UTR for Registration Fees']), 'utr');
   document.getElementById('valStudentCat').textContent = displayVal(getVal(student, ['Student Category', 'Category']));
  
