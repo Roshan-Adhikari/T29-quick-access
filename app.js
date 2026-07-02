@@ -1079,22 +1079,49 @@ async function searchStudent(searchQuery) {
     // Row number is matchIndex + 2 (since column retrieval started at row 2)
     const rowNum = matchIndex + 2;
 
-    showLoader(true, 'Retrieving Profile Data...', `Downloading row ${rowNum} details from sheet...`);
-
     const rawSpreadsheetId = localStorage.getItem('cfg_spreadsheet_id');
     const spreadsheetId = extractSpreadsheetId(rawSpreadsheetId);
     const sheetName = localStorage.getItem('cfg_sheet_name') || 'Master Data';
-    const lastColLetter = getColumnLetter(headers.length - 1);
 
-    // Fetch details of this row
-    const rowRange = `'${sheetName}'!A${rowNum}:${lastColLetter}${rowNum}`;
-    const rowDataResponse = await callSheetsAPI(spreadsheetId, rowRange);
+    // --- Profile Row Cache ---
+    const profileCacheKey = `profile_row_${spreadsheetId}_${sheetName}_${rowNum}`;
+    const PROFILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
-    if (!rowDataResponse.values || rowDataResponse.values.length === 0) {
-      throw new Error(`Successfully located row ${rowNum} but no cells were returned.`);
+    let rowData = null;
+    let fromCache = false;
+
+    try {
+      const cachedProfile = await getCacheItem(profileCacheKey);
+      if (cachedProfile && cachedProfile.rowData && cachedProfile.headers &&
+          (Date.now() - cachedProfile.cachedAt) < PROFILE_CACHE_TTL_MS) {
+        // ✅ Serve from local cache — instant!
+        rowData = cachedProfile.rowData;
+        fromCache = true;
+      }
+    } catch (e) { /* ignore cache errors */ }
+
+    if (!rowData) {
+      showLoader(true, 'Retrieving Profile Data...', `Downloading row ${rowNum} details from sheet...`);
+      const lastColLetter = getColumnLetter(headers.length - 1);
+      const rowRange = `'${sheetName}'!A${rowNum}:${lastColLetter}${rowNum}`;
+      const rowDataResponse = await callSheetsAPI(spreadsheetId, rowRange);
+
+      if (!rowDataResponse.values || rowDataResponse.values.length === 0) {
+        throw new Error(`Successfully located row ${rowNum} but no cells were returned.`);
+      }
+      rowData = rowDataResponse.values[0];
+
+      // Save to cache for next time
+      try {
+        await setCacheItem(profileCacheKey, {
+          rowData,
+          headers,
+          cachedAt: Date.now()
+        });
+      } catch (e) { /* ignore cache write errors */ }
+    } else {
+      showLoader(true, 'Loading from cache...', `Serving row ${rowNum} from local cache (instant)...`);
     }
-
-    const rowData = rowDataResponse.values[0];
 
     // Build normalized map
     const student = {};
@@ -1107,6 +1134,7 @@ async function searchStudent(searchQuery) {
     student._name = getVal(student, ['Student Name'], 'Student Record');
     student._email = emails[matchIndex] || getVal(student, ['Email id', 'Email'], 'email@domain.com');
     student._row = rowNum;
+    student._fromCache = fromCache;
 
     // Display student data
     displayStudentDetails(student, headers, rowData);
