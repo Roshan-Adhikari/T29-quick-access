@@ -640,6 +640,64 @@ function showLoader(show, headline = '', subtext = '') {
   }
 }
 
+// Background prefetch: silently download ALL rows in batches, store in IndexedDB
+// This makes every future student lookup instant (< 50ms) with no API calls
+let prefetchInProgress = false;
+
+async function prefetchAllRows(spreadsheetId, sheetName, headers, totalRows) {
+  if (prefetchInProgress) return;
+  prefetchInProgress = true;
+
+  const PROFILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+  const BATCH_SIZE = 2000; // rows per API call
+  const lastColLetter = getColumnLetter(headers.length - 1);
+  const cachedAt = Date.now();
+
+  try {
+    let rowsCached = 0;
+    let batchStart = 2; // data starts at row 2 (row 1 = headers)
+
+    while (batchStart <= totalRows + 1) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE - 1, totalRows + 1);
+      const range = `'${sheetName}'!A${batchStart}:${lastColLetter}${batchEnd}`;
+
+      updateIndexStatus(`Caching rows ${batchStart}–${batchEnd} of ${totalRows} in background…`, 'yellow');
+
+      // Fetch this batch of rows from Sheets API
+      const data = await callSheetsAPI(spreadsheetId, range);
+      const rows = (data.values || []);
+
+      // Write each row individually to IndexedDB using the same key as searchStudent
+      const writePromises = rows.map((rowData, i) => {
+        const rowNum = batchStart + i; // actual sheet row number
+        const cacheKey = `profile_row_${spreadsheetId}_${sheetName}_${rowNum}`;
+        return setCacheItem(cacheKey, { rowData, headers, cachedAt })
+          .catch(() => {}); // silently ignore individual write errors
+      });
+
+      await Promise.all(writePromises);
+
+      rowsCached += rows.length;
+      batchStart += BATCH_SIZE;
+
+      // Small delay between batches to avoid hammering the API and triggering rate limits
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    updateIndexStatus(`✅ All ${rowsCached.toLocaleString()} profiles cached — lookups instant!`, 'green');
+    setTimeout(() => {
+      updateIndexStatus(`Index + ${rowsCached.toLocaleString()} profiles cached.`, 'green');
+    }, 4000);
+
+  } catch (err) {
+    // Prefetch failure is non-fatal — app still works, just falls back to live API
+    console.warn('Background row prefetch failed (non-fatal):', err);
+    updateIndexStatus(`Index cached: ${totalRows.toLocaleString()} records.`, 'green');
+  } finally {
+    prefetchInProgress = false;
+  }
+}
+
 // Fetch Spreadsheet Index (Headers & Email Column)
 async function fetchSpreadsheetIndex(forceRefresh = false) {
   if (!accessToken) return null;
@@ -830,6 +888,10 @@ async function fetchSpreadsheetIndex(forceRefresh = false) {
     updateIndexStatus(`Index cached: ${emailIndex.length.toLocaleString()} records.`, 'green');
     
     initializeFilters();
+
+    // Fire background row prefetch (non-blocking — does NOT wait for completion)
+    prefetchAllRows(spreadsheetId, sheetName, sheetHeaders, emailIndex.length);
+
     return { headers: sheetHeaders, emails: emailIndex, names: nameIndex, mobiles: mobileIndex };
   } catch (err) {
     showLoader(false);
