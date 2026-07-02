@@ -582,7 +582,13 @@ body {
 /* Banner Card details */
 .banner-card {
   padding: 1.5rem 2rem;
+  background: linear-gradient(135deg, hsl(220, 25%, 96%), hsl(220, 20%, 92%));
+  border: 1px solid hsl(220, 20%, 88%);
+}
+
+.dark-theme .banner-card {
   background: linear-gradient(135deg, hsla(354, 50%, 15%, 0.6), hsla(223, 40%, 14%, 0.65));
+  border-color: var(--border-glass);
 }
 
 .banner-content {
@@ -621,6 +627,7 @@ body {
   font-size: 1.6rem;
   font-weight: 700;
   letter-spacing: -0.5px;
+  color: var(--text-main);
 }
 
 .badge {
@@ -653,10 +660,20 @@ body {
   align-items: center;
   gap: 0.375rem;
   font-size: 0.85rem;
+  color: hsl(222, 47%, 25%);
+  font-weight: 500;
+}
+
+.dark-theme .sub-item {
   color: var(--text-muted);
 }
 
 .sub-item svg {
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.dark-theme .sub-item svg {
   color: var(--text-dark);
 }
 
@@ -666,18 +683,23 @@ body {
 }
 
 .status-summary-box {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--border-glass);
+  background: hsla(220, 20%, 90%, 0.8);
+  border: 1px solid hsl(220, 20%, 85%);
   padding: 0.5rem 1rem;
   border-radius: 10px;
   text-align: right;
   min-width: 120px;
 }
 
+.dark-theme .status-summary-box {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: var(--border-glass);
+}
+
 .summary-label {
   font-size: 0.65rem;
   text-transform: uppercase;
-  color: var(--text-dark);
+  color: hsl(215, 20%, 40%);
   font-weight: 700;
   letter-spacing: 0.5px;
 }
@@ -685,6 +707,10 @@ body {
 .summary-value {
   font-size: 1.05rem;
   font-weight: 700;
+  color: var(--color-primary);
+}
+
+.dark-theme .summary-value {
   color: var(--color-yellow);
 }
 
@@ -1369,3 +1395,105 @@ body:not(.dark-theme) .filter-results-table th {
     flex-direction: column;
   }
 }
+
+/* Custom dropdown and live filters dashboard styles */
+.filter-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-dropdown-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: var(--shadow-lg);
+  margin-top: 4px;
+}
+
+.custom-dropdown-item {
+  padding: 0.65rem 0.875rem;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  text-align: left;
+}
+
+.custom-dropdown-item:hover, .custom-dropdown-item.selected {
+  background-color: hsla(354, 85%, 52%, 0.08);
+  color: var(--color-primary);
+}
+
+.status-counts-dashboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: hsla(220, 20%, 50%, 0.05);
+  border-radius: 8px;
+  border: 1px dashed var(--border-glass);
+}
+
+.status-counts-dashboard.hidden {
+  display: none !important;
+}
+
+.status-counts-title {
+  width: 100%;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.status-count-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.status-count-badge .count-number {
+  background: var(--color-primary);
+  color: white;
+  padding: 0.1rem 0.45rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Color theme mappings for common status counts */
+.status-count-badge[data-status*="approve"] .count-number,
+.status-count-badge[data-status*="done"] .count-number,
+.status-count-badge[data-status*="success"] .count-number {
+  background: var(--color-green);
+}
+
+.status-count-badge[data-status*="pend"] .count-number,
+.status-count-badge[data-status*="progress"] .count-number {
+  background: var(--color-yellow);
+  color: hsl(222, 47%, 11%);
+}
+
+.status-count-badge[data-status*="reject"] .count-number,
+.status-count-badge[data-status*="cancel"] .count-number,
+.status-count-badge[data-status*="fail"] .count-number {
+  background: var(--color-red);
+}
+

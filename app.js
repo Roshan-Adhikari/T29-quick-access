@@ -133,12 +133,13 @@ const autocompleteSuggestions = document.getElementById('autocompleteSuggestions
 
 // Filter Panel UI Elements
 const txtCommonName = document.getElementById('txtCommonName');
-const commonNamesList = document.getElementById('commonNamesList');
+const filterCommonNameSuggestions = document.getElementById('filterCommonNameSuggestions');
 const selBatchDate = document.getElementById('selBatchDate');
 const btnResetFilters = document.getElementById('btnResetFilters');
 const btnDownloadCSV = document.getElementById('btnDownloadCSV');
 const filterResultsCard = document.getElementById('filterResultsCard');
 const lblFilterResultsCount = document.getElementById('lblFilterResultsCount');
+const filterNBFCDashboard = document.getElementById('filterNBFCDashboard');
 const tableFilterBody = document.getElementById('tableFilterBody');
 const btnFilterPrev = document.getElementById('btnFilterPrev');
 const btnFilterNext = document.getElementById('btnFilterNext');
@@ -220,8 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Filter event listeners
   if (txtCommonName) {
-    txtCommonName.addEventListener('input', handleCommonNameChange);
-    txtCommonName.addEventListener('change', handleCommonNameChange);
+    txtCommonName.addEventListener('input', handleCommonNameInput);
+    txtCommonName.addEventListener('focus', handleCommonNameInput);
+    txtCommonName.addEventListener('click', handleCommonNameInput);
   }
   if (selBatchDate) selBatchDate.addEventListener('change', applyFilters);
   if (btnResetFilters) btnResetFilters.addEventListener('click', resetFilters);
@@ -1348,18 +1350,7 @@ function initializeFilters() {
     return parseDate(a) - parseDate(b);
   });
 
-  populateCommonNamesDatalist();
   resetFilters();
-}
-
-function populateCommonNamesDatalist() {
-  if (!commonNamesList) return;
-  commonNamesList.innerHTML = '';
-  uniqueCommonNames.forEach(name => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    commonNamesList.appendChild(opt);
-  });
 }
 
 function populateBatchDatesSelect(datesArray) {
@@ -1372,6 +1363,59 @@ function populateBatchDatesSelect(datesArray) {
     selBatchDate.appendChild(opt);
   });
 }
+
+// Custom autocomplete dropdown for Common Name in filters
+function handleCommonNameInput(e) {
+  const query = txtCommonName.value.trim().toLowerCase();
+  
+  if (!uniqueCommonNames || uniqueCommonNames.length === 0) return;
+  
+  const matches = uniqueCommonNames.filter(name => 
+    !query || name.toLowerCase().includes(query)
+  );
+
+  renderCommonNameSuggestions(matches);
+}
+
+function renderCommonNameSuggestions(matches) {
+  if (!filterCommonNameSuggestions) return;
+  
+  filterCommonNameSuggestions.innerHTML = '';
+  
+  if (matches.length === 0) {
+    filterCommonNameSuggestions.classList.add('hidden');
+    return;
+  }
+
+  const maxDisplay = Math.min(matches.length, 50);
+  for (let i = 0; i < maxDisplay; i++) {
+    const name = matches[i];
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'custom-dropdown-item';
+    itemDiv.textContent = name;
+    
+    itemDiv.addEventListener('click', () => {
+      txtCommonName.value = name;
+      filterCommonNameSuggestions.classList.add('hidden');
+      handleCommonNameChange();
+    });
+    
+    filterCommonNameSuggestions.appendChild(itemDiv);
+  }
+  
+  filterCommonNameSuggestions.classList.remove('hidden');
+}
+
+function handleOutsideFiltersClick(e) {
+  if (txtCommonName && filterCommonNameSuggestions) {
+    if (!txtCommonName.contains(e.target) && !filterCommonNameSuggestions.contains(e.target)) {
+      filterCommonNameSuggestions.classList.add('hidden');
+    }
+  }
+}
+
+// Add click listener outside to close common name suggestions
+document.addEventListener('click', handleOutsideFiltersClick);
 
 function handleCommonNameChange() {
   const selectedCommon = txtCommonName.value.trim();
@@ -1408,6 +1452,52 @@ function handleCommonNameChange() {
   applyFilters();
 }
 
+// Calculate and render NBFC Status Summary Dashboard
+function updateNBFCDashboard() {
+  if (!filterNBFCDashboard) return;
+
+  if (filteredStudentIndices.length === 0) {
+    filterNBFCDashboard.classList.add('hidden');
+    return;
+  }
+
+  const counts = {};
+  filteredStudentIndices.forEach(idx => {
+    let status = nbfcStatusIndex[idx] || '-';
+    status = status.trim();
+    if (!status) status = '-';
+    counts[status] = (counts[status] || 0) + 1;
+  });
+
+  const keys = Object.keys(counts);
+  if (keys.length === 0 || (keys.length === 1 && keys[0] === '-')) {
+    filterNBFCDashboard.classList.add('hidden');
+    return;
+  }
+
+  filterNBFCDashboard.innerHTML = '<div class="status-counts-title">NBFC Status Summary</div>';
+
+  keys.sort((a, b) => counts[b] - counts[a]);
+
+  keys.forEach(status => {
+    if (status === '-' && keys.length > 1) return;
+
+    const count = counts[status];
+    const badge = document.createElement('div');
+    badge.className = 'status-count-badge';
+    badge.setAttribute('data-status', status.toLowerCase());
+    
+    const statusText = status === '-' ? 'No Status / Direct' : status;
+    badge.innerHTML = `
+      <span>${statusText}</span>
+      <span class="count-number">${count}</span>
+    `;
+    filterNBFCDashboard.appendChild(badge);
+  });
+
+  filterNBFCDashboard.classList.remove('hidden');
+}
+
 function applyFilters() {
   if (!emailIndex) return;
 
@@ -1440,6 +1530,7 @@ function applyFilters() {
   }
 
   renderFilterTable();
+  updateNBFCDashboard();
 }
 
 function resetFilters() {
@@ -1460,6 +1551,7 @@ function resetFilters() {
   
   filterCurrentPage = 1;
   renderFilterTable();
+  updateNBFCDashboard();
 }
 
 function renderFilterTable() {
