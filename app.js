@@ -753,16 +753,16 @@ async function callAppsScript(action, extraParams = {}) {
 
   const params = new URLSearchParams({ action, token, sheet, ...extraParams });
   
-  // Create an AbortController for a 60 second timeout
+  // Create an AbortController for a 120 second timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 60000);
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
 
   let res;
   try {
     res = await fetch(`${url}?${params}`, { signal: controller.signal });
   } catch (err) {
     clearTimeout(timeoutId);
-    if (err.name === 'AbortError') throw new Error('Apps Script request timed out after 60 seconds. The server might be processing a very large amount of data or is stuck.');
+    if (err.name === 'AbortError') throw new Error('Apps Script request timed out after 120 seconds. The server might be processing a very large amount of data or is stuck.');
     throw err;
   }
   
