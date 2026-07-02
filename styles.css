@@ -1434,6 +1434,41 @@ body:not(.dark-theme) .filter-results-table th {
   width: 100%;
 }
 
+.multi-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.multi-select-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  background-color: var(--bg-main);
+}
+
+.multi-select-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.65rem 0.875rem;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.multi-select-checkbox-item:hover {
+  background: var(--bg-hover);
+}
+
+.multi-select-checkbox-item input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+}
 .custom-dropdown-list {
   position: absolute;
   top: 100%;

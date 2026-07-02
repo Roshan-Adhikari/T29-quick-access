@@ -21,6 +21,7 @@ let batchStartDateIndex = null;
 // Filtering UI state
 let uniqueCommonNames = [];
 let uniqueBatchDates = [];
+let selectedBatchDatesFilter = [];
 let filteredStudentIndices = []; // Stores matching index numbers from emailIndex
 let filterCurrentPage = 1;
 const FILTER_PAGE_SIZE = 10;
@@ -154,7 +155,9 @@ const autocompleteSuggestions = document.getElementById('autocompleteSuggestions
 // Filter Panel UI Elements
 const txtCommonName = document.getElementById('txtCommonName');
 const filterCommonNameSuggestions = document.getElementById('filterCommonNameSuggestions');
-const selBatchDate = document.getElementById('selBatchDate');
+const btnBatchDateSelect = document.getElementById('btnBatchDateSelect');
+const lblBatchDateSelect = document.getElementById('lblBatchDateSelect');
+const dropdownBatchDate = document.getElementById('dropdownBatchDate');
 const btnResetFilters = document.getElementById('btnResetFilters');
 const btnDownloadCSV = document.getElementById('btnDownloadCSV');
 const filterResultsCard = document.getElementById('filterResultsCard');
@@ -245,7 +248,19 @@ document.addEventListener('DOMContentLoaded', () => {
     txtCommonName.addEventListener('focus', handleCommonNameInput);
     txtCommonName.addEventListener('click', handleCommonNameInput);
   }
-  if (selBatchDate) selBatchDate.addEventListener('change', applyFilters);
+  if (btnBatchDateSelect) {
+    btnBatchDateSelect.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdownBatchDate.classList.toggle('hidden');
+    });
+  }
+
+  // Close custom dropdowns on outside click
+  document.addEventListener('click', (e) => {
+    if (dropdownBatchDate && !dropdownBatchDate.contains(e.target) && !btnBatchDateSelect.contains(e.target)) {
+      dropdownBatchDate.classList.add('hidden');
+    }
+  });
   if (btnResetFilters) btnResetFilters.addEventListener('click', resetFilters);
   if (btnDownloadCSV) btnDownloadCSV.addEventListener('click', downloadFilteredCSV);
   
@@ -1539,14 +1554,51 @@ function initializeFilters() {
 }
 
 function populateBatchDatesSelect(datesArray) {
-  if (!selBatchDate) return;
-  selBatchDate.innerHTML = '<option value="">All Batch Dates</option>';
+  if (!dropdownBatchDate) return;
+  dropdownBatchDate.innerHTML = '';
+  
+  if (!datesArray || datesArray.length === 0) {
+    dropdownBatchDate.innerHTML = '<div class="custom-dropdown-item" style="color: var(--text-muted)">No dates available</div>';
+    return;
+  }
+
   datesArray.forEach(date => {
-    const opt = document.createElement('option');
-    opt.value = date;
-    opt.textContent = formatDateDisplay(date);
-    selBatchDate.appendChild(opt);
+    const label = document.createElement('label');
+    label.className = 'multi-select-checkbox-item';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.value = date;
+    // Check it if it is already in the filter
+    checkbox.checked = selectedBatchDatesFilter.includes(date);
+    
+    checkbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        if (!selectedBatchDatesFilter.includes(date)) selectedBatchDatesFilter.push(date);
+      } else {
+        selectedBatchDatesFilter = selectedBatchDatesFilter.filter(d => d !== date);
+      }
+      updateBatchDateLabel();
+      applyFilters();
+    });
+
+    const textNode = document.createTextNode(formatDateDisplay(date));
+    
+    label.appendChild(checkbox);
+    label.appendChild(textNode);
+    dropdownBatchDate.appendChild(label);
   });
+}
+
+function updateBatchDateLabel() {
+  if (!lblBatchDateSelect) return;
+  if (selectedBatchDatesFilter.length === 0) {
+    lblBatchDateSelect.textContent = 'All Batch Dates';
+  } else if (selectedBatchDatesFilter.length === 1) {
+    lblBatchDateSelect.textContent = formatDateDisplay(selectedBatchDatesFilter[0]);
+  } else {
+    lblBatchDateSelect.textContent = `${selectedBatchDatesFilter.length} Dates Selected`;
+  }
 }
 
 // Custom autocomplete dropdown for Common Name in filters
@@ -1747,7 +1799,6 @@ function applyFilters() {
   if (!emailIndex) return;
 
   const selectedCommon = txtCommonName.value.trim();
-  const selectedBatch = selBatchDate.value;
 
   const matches = [];
 
@@ -1756,7 +1807,9 @@ function applyFilters() {
     const batch = batchStartDateIndex[i] || '';
 
     const commonMatch = !selectedCommon || common.toLowerCase() === selectedCommon.toLowerCase();
-    const batchMatch = !selectedBatch || batch === selectedBatch;
+    
+    // Batch Match logic: true if no filters selected, or if the student's batch is in the selected filters array
+    const batchMatch = selectedBatchDatesFilter.length === 0 || selectedBatchDatesFilter.includes(batch);
 
     if (commonMatch && batchMatch) {
       matches.push(i);
@@ -1780,7 +1833,8 @@ function applyFilters() {
 
 function resetFilters() {
   if (txtCommonName) txtCommonName.value = '';
-  if (selBatchDate) selBatchDate.value = '';
+  selectedBatchDatesFilter = [];
+  updateBatchDateLabel();
   
   populateBatchDatesSelect(uniqueBatchDates);
   
@@ -1929,7 +1983,12 @@ function downloadFilteredCSV() {
   link.setAttribute('href', url);
   
   const selectedCommon = txtCommonName.value ? txtCommonName.value.replace(/[^a-zA-Z0-9-_]/g, '_') : 'All_Common';
-  const selectedBatch = selBatchDate.value ? selBatchDate.value.replace(/[^a-zA-Z0-9-_]/g, '_') : 'All_Dates';
+  let selectedBatch = 'All_Dates';
+  if (selectedBatchDatesFilter.length === 1) {
+    selectedBatch = formatDateDisplay(selectedBatchDatesFilter[0]).replace(/[^a-zA-Z0-9-_]/g, '_');
+  } else if (selectedBatchDatesFilter.length > 1) {
+    selectedBatch = `${selectedBatchDatesFilter.length}_Dates`;
+  }
   link.setAttribute('download', `Students_Filter_${selectedCommon}_${selectedBatch}.csv`);
   
   link.style.visibility = 'hidden';
