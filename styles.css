@@ -1266,6 +1266,11 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 1.25rem;
   margin-bottom: 0.5rem;
+  overflow: visible;
+}
+
+.filter-card {
+  overflow: visible !important;
 }
 
 .filter-select {
@@ -1428,6 +1433,9 @@ body:not(.dark-theme) .filter-results-table th {
   cursor: pointer;
   transition: var(--transition-fast);
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dark-theme .custom-dropdown-item {
@@ -1494,7 +1502,8 @@ body:not(.dark-theme) .filter-results-table th {
 }
 
 .status-count-badge[data-status*="pend"] .count-number,
-.status-count-badge[data-status*="progress"] .count-number {
+.status-count-badge[data-status*="progress"] .count-number,
+.status-count-badge[data-status*="process"] .count-number {
   background: var(--color-yellow);
   color: hsl(222, 47%, 11%);
 }

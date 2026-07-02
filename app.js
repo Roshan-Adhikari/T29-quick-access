@@ -1393,6 +1393,7 @@ function renderCommonNameSuggestions(matches) {
     const itemDiv = document.createElement('div');
     itemDiv.className = 'custom-dropdown-item';
     itemDiv.textContent = name;
+    itemDiv.title = name;
     
     itemDiv.addEventListener('click', () => {
       txtCommonName.value = name;
@@ -1462,19 +1463,29 @@ function updateNBFCDashboard() {
   }
 
   const counts = {};
-  let totalActive = 0;
+  let totalPaid = 0;
+  let totalInProcess = 0;
+  let totalDropout = 0;
 
   filteredStudentIndices.forEach(idx => {
     let status = nbfcStatusIndex[idx] || '-';
     status = status.trim();
     if (!status) status = '-';
-    
-    counts[status] = (counts[status] || 0) + 1;
 
-    // Sum all except dropouts
-    if (!status.toLowerCase().includes('drop')) {
-      totalActive++;
+    const isBlank = (status === '-');
+    const isDropout = status.toLowerCase().includes('drop');
+
+    if (isBlank) {
+      totalInProcess++;
+    } else if (isDropout) {
+      totalDropout++;
+    } else {
+      totalPaid++;
     }
+
+    // Map blank status to "In Process" for display
+    const displayStatus = isBlank ? 'In Process' : status;
+    counts[displayStatus] = (counts[displayStatus] || 0) + 1;
   });
 
   const keys = Object.keys(counts);
@@ -1483,28 +1494,34 @@ function updateNBFCDashboard() {
     return;
   }
 
-  // Set header and active student count (excluding dropouts)
+  // Set header and active student counts
   filterNBFCDashboard.innerHTML = `
     <div class="status-counts-title">NBFC Status Summary</div>
-    <div class="status-count-badge status-total-active" style="border-color: var(--color-blue); font-weight: 700;">
-      <span>Total (Excl. Dropouts)</span>
-      <span class="count-number" style="background: var(--color-blue);">${totalActive}</span>
+    <div class="status-count-badge status-total-paid" style="border-color: var(--color-green); font-weight: 700;">
+      <span>Paid Students</span>
+      <span class="count-number" style="background: var(--color-green);">${totalPaid}</span>
     </div>
+    <div class="status-count-badge status-total-in-process" style="border-color: var(--color-yellow); font-weight: 700;">
+      <span>In Process (Blanks)</span>
+      <span class="count-number" style="background: var(--color-yellow); color: hsl(222, 47%, 11%);">${totalInProcess}</span>
+    </div>
+    <div class="status-count-badge status-total-dropouts" style="border-color: var(--color-red); font-weight: 700;">
+      <span>Dropouts</span>
+      <span class="count-number" style="background: var(--color-red);">${totalDropout}</span>
+    </div>
+    <div style="width: 100%; margin-bottom: 0.5rem; border-top: 1px dashed var(--border-glass);"></div>
   `;
 
   keys.sort((a, b) => counts[b] - counts[a]);
 
   keys.forEach(status => {
-    if (status === '-' && keys.length > 1) return;
-
     const count = counts[status];
     const badge = document.createElement('div');
     badge.className = 'status-count-badge';
     badge.setAttribute('data-status', status.toLowerCase());
     
-    const statusText = status === '-' ? 'No Status / Direct' : status;
     badge.innerHTML = `
-      <span>${statusText}</span>
+      <span>${status}</span>
       <span class="count-number">${count}</span>
     `;
     filterNBFCDashboard.appendChild(badge);
