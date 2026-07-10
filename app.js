@@ -221,7 +221,8 @@ document.addEventListener('DOMContentLoaded', () => {
   txtSearchEmail.addEventListener('keydown', handleSearchKeydown);
   document.addEventListener('click', handleOutsideClick);
   
-  btnClearCache.addEventListener('click', () => {
+  btnClearCache.addEventListener('click', async () => {
+    await clearDBCache();
     fetchSpreadsheetIndex(true);
   });
 
@@ -712,10 +713,17 @@ async function prefetchAllRows(spreadsheetId, sheetName, headers, totalRows) {
         rows = data.values || [];
       }
 
+      const searchColumn = localStorage.getItem('cfg_search_column') || 'Email id';
+      const emailColIdx = headers.findIndex(h => normalizeHeaderKey(h) === normalizeHeaderKey(searchColumn));
+
       // Write each row to IndexedDB using the same key as searchStudent
       const writePromises = rows.map((rowData, i) => {
         const rowNum = batchStart + i;
-        const cacheKey = `profile_row_${spreadsheetId}_${sheetName}_${rowNum}`;
+        let cacheKey = `profile_row_${spreadsheetId}_${sheetName}_${rowNum}`;
+        if (emailColIdx !== -1 && rowData[emailColIdx]) {
+           const email = rowData[emailColIdx].toString().toLowerCase().trim();
+           cacheKey = `profile_email_${spreadsheetId}_${sheetName}_${email}`;
+        }
         return setCacheItem(cacheKey, { rowData, headers, cachedAt }).catch(() => {});
       });
 
@@ -1283,7 +1291,8 @@ async function searchStudent(searchQuery) {
     const sheetName = localStorage.getItem('cfg_sheet_name') || 'Master Data';
 
     // --- Profile Row Cache ---
-    const profileCacheKey = `profile_row_${spreadsheetId}_${sheetName}_${rowNum}`;
+    const targetEmail = emails[matchIndex] || `row_${rowNum}`; // fallback to rowNum if email is missing
+    const profileCacheKey = `profile_email_${spreadsheetId}_${sheetName}_${targetEmail}`;
     const PROFILE_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
     let rowData = null;
