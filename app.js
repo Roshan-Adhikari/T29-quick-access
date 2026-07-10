@@ -472,7 +472,7 @@ function initGoogleAuth() {
   try {
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/spreadsheets.readonly',
+      scope: 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
       callback: (tokenResponse) => {
         if (tokenResponse && tokenResponse.access_token) {
           accessToken = tokenResponse.access_token;
