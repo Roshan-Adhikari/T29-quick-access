@@ -80,8 +80,18 @@ function getIndex(sheet) {
   const cmIdx = colMap['commonname'];
   const bIdx = colMap['batchstartdate'];
 
-  // 3. Fast native V8 loop to extract needed columns
-  for (let i = 0; i < allData.length; i++) {
+  // 3. Find true last row to avoid processing thousands of empty formatted rows at the bottom
+  let actualLastRowIdx = allData.length - 1;
+  while (actualLastRowIdx >= 0) {
+    if (allData[actualLastRowIdx].some(cell => cell !== '' && cell !== null)) {
+      break; // Found a row with actual data
+    }
+    actualLastRowIdx--;
+  }
+  const maxRowsToProcess = actualLastRowIdx + 1;
+
+  // 4. Fast native V8 loop to extract needed columns
+  for (let i = 0; i < maxRowsToProcess; i++) {
     const row = allData[i];
     
     // We MUST push an item for every row so the index lines up correctly with the sheet row numbers
