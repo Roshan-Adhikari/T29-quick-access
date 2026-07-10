@@ -1319,6 +1319,29 @@ async function searchStudent(searchQuery) {
       }
       rowData = rowDataResponse.values[0];
 
+      // --- AUTO-HEALING INDEX LOGIC ---
+      // If the spreadsheet was sorted or rows were inserted/deleted since the index was fetched,
+      // the rowNum will point to the WRONG student. Let's verify if the email matches.
+      const searchColumn = localStorage.getItem('cfg_search_column') || 'Email id';
+      const emailColIdx = headers.findIndex(h => normalizeHeaderKey(h) === normalizeHeaderKey(searchColumn));
+      
+      if (emailColIdx !== -1 && rowData[emailColIdx]) {
+        const fetchedEmail = rowData[emailColIdx].toString().toLowerCase().trim();
+        const expectedEmail = (emails[matchIndex] || '').toString().toLowerCase().trim();
+        
+        if (expectedEmail && fetchedEmail !== expectedEmail) {
+           console.warn(`Index is stale! Expected email ${expectedEmail} at row ${rowNum} but found ${fetchedEmail}. Healing index...`);
+           
+           // Clear DB Cache & Force Refresh Index
+           showLoader(true, 'Healing Database Index...', 'Spreadsheet rows shifted. Automatically resynchronizing index...');
+           await clearDBCache();
+           await fetchSpreadsheetIndex(true);
+           
+           // Re-run the search now that the index is fresh
+           return searchStudent(searchQuery);
+        }
+      }
+
       // Save to cache for next time
       try {
         await setCacheItem(profileCacheKey, {
