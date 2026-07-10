@@ -50,15 +50,19 @@ function getIndex(sheet) {
   ];
 
   const colMap = {};
+  let maxColIndex = 0;
   headers.forEach((h, i) => {
     const normalizedHeader = norm(h);
     if (columnsToFetch.includes(normalizedHeader)) {
        colMap[normalizedHeader] = i; // 0-indexed column position
+       if (i > maxColIndex) maxColIndex = i;
     }
   });
 
-  // 2. ONE fast backend call to get all data
-  const allData = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+  // 2. ONE fast backend call to get all required data
+  // Limit the fetching to only the maximum required column (1-indexed) to avoid loading heavy unneeded columns
+  const colsToFetch = maxColIndex + 1;
+  const allData = sheet.getRange(2, 1, lastRow - 1, colsToFetch).getValues();
   
   const columns = {
     email: [], name: [], mobile: [], altphone: [], course: [],
