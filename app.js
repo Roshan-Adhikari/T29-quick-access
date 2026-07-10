@@ -822,7 +822,10 @@ async function fetchSpreadsheetIndex(forceRefresh = false) {
     try {
       updateIndexStatus('Loading local cache...', 'yellow');
       const cached = await getCacheItem('sheet_index_cache');
-      if (cached && 
+      const ONE_HOUR_MS = 60 * 60 * 1000;
+      const isCacheFresh = cached && cached.timestamp && (Date.now() - cached.timestamp < ONE_HOUR_MS);
+
+      if (isCacheFresh && 
           cached.spreadsheetId === spreadsheetId && 
           cached.sheetName === sheetName && 
           cached.searchColumn === searchColumn &&
