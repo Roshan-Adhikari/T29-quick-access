@@ -41,21 +41,23 @@ function getIndex(sheet) {
   // 1. Fetch headers to map columns
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   
+  // Helper to safely match headers regardless of case/spaces
+  const norm = (str) => (str || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+
   const columnsToFetch = [
-    'Email id', 'Name', 'Mobile', 'Alternate Number', 'Course Name',
-    'Payment Mode', 'Over all Amount Paid', 'NBFC Status', 'Common Name', 'Batch Start Date'
+    'emailid', 'studentname', 'mobile', 'alternatenumber', 'coursename',
+    'paymentmode', 'overallamountpaid', 'nbfcstatus', 'commonname', 'batchstartdate'
   ];
 
   const colMap = {};
   headers.forEach((h, i) => {
-    const headerStr = (h || '').toString().trim();
-    if (columnsToFetch.includes(headerStr)) {
-       colMap[headerStr] = i; // 0-indexed column position
+    const normalizedHeader = norm(h);
+    if (columnsToFetch.includes(normalizedHeader)) {
+       colMap[normalizedHeader] = i; // 0-indexed column position
     }
   });
 
   // 2. ONE fast backend call to get all data
-  // (Faster than multiple getRange calls, even if slightly higher memory)
   const allData = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
   
   const columns = {
@@ -63,16 +65,16 @@ function getIndex(sheet) {
     payment: [], paid: [], nbfc: [], common: [], batch: []
   };
 
-  const eIdx = colMap['Email id'];
-  const nIdx = colMap['Name'];
-  const mIdx = colMap['Mobile'];
-  const aIdx = colMap['Alternate Number'];
-  const cIdx = colMap['Course Name'];
-  const pIdx = colMap['Payment Mode'];
-  const paIdx = colMap['Over all Amount Paid'];
-  const nbIdx = colMap['NBFC Status'];
-  const cmIdx = colMap['Common Name'];
-  const bIdx = colMap['Batch Start Date'];
+  const eIdx = colMap['emailid'];
+  const nIdx = colMap['studentname'];
+  const mIdx = colMap['mobile'];
+  const aIdx = colMap['alternatenumber'];
+  const cIdx = colMap['coursename'];
+  const pIdx = colMap['paymentmode'];
+  const paIdx = colMap['overallamountpaid'];
+  const nbIdx = colMap['nbfcstatus'];
+  const cmIdx = colMap['commonname'];
+  const bIdx = colMap['batchstartdate'];
 
   // 3. Fast native V8 loop to extract needed columns
   for (let i = 0; i < allData.length; i++) {

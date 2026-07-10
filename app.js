@@ -1548,7 +1548,8 @@ function updateHistoryUI() {
     const chip = document.createElement('button');
     chip.className = 'history-chip';
     chip.innerHTML = `
-      <span><strong>${item.name}</strong> (${displayVal(item.email, 'email')})</span>
+      <span class="font-semibold text-main">${item.name}</span>
+      <span class="text-muted" style="font-size: 0.75rem;">(${displayVal(item.email, 'email')})</span>
     `;
     chip.addEventListener('click', () => {
       txtSearchEmail.value = item.email;
